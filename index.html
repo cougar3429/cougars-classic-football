@@ -123,7 +123,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
       <div class="row"><label>Controls</label><div class="seg" role="group" aria-label="Move the controls"><button type="button" id="ctlmove">MOVE</button><button type="button" id="ctlreset">RESET</button></div></div>
     </div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.22</small>
+    <small id="ver">Version 0.23</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -439,6 +439,10 @@ function walkAll(dt){ let done = true;
   for (const p of G.all) if (p.tx!=null && !moveToward(p,{x:p.tx,y:p.ty},SPD.walk,dt)) done = false;
   return done; }
 function visitStep(dt, visitor, list, center, human, assign, done){
+  if (!human){   // the computer makes all its calls instantly — you never wait on it (user, v0.23)
+    for (; G.visit < list.length; G.visit++) assign(list[G.visit], ROUTES[rnd()*4|0]);
+    G.wait = 0; G.waiting = false; return done();
+  }
   const tgt = list[G.visit];
   const vx = tgt.x-center.x, vy = tgt.y-center.y, L = Math.hypot(vx,vy)||1;
   const spot = {x:tgt.x-vx/L*0.6, y:tgt.y-vy/L*0.6};
@@ -548,9 +552,8 @@ function cpuQB(dt){
   moveToward(q, {x:G.los - d*7, y:q.y}, SPD.qb, dt);   // drops back 3 yards from where he lined up, then sets (user, v0.16)
   const pressured = isPressured(q);
   st.think -= dt; if (st.think > 0 && !pressured) return; st.think = 0.2;
-  /* patience (added by Claude in v0.13, told to the user): with time, he looks for someone open 8+ yards downfield and takes the deepest one.
-     After 3 seconds, or once he's pressured, he'll take anyone open 3+ yards downfield, the deeper the better. */
-  const goal = (pressured || G.liveT > 3) ? 3 : 8;
+  /* first 1.5 seconds: someone open 5+ yards downfield, deepest first. After that, or once pressured, anyone open 3+ yards. */
+  const goal = (pressured || G.liveT > 1.5) ? 3 : 5;   // 5+ yards for the first 1.5 s (user, v0.23)
   const best = openWR(goal);
   if (best && best.sep > 1.7) return throwTo(best.w);
   if (pressured){                               // nobody open and he's pressured: throw to anyone open 3+ yards out, or run
@@ -820,7 +823,7 @@ function update(dt){
   if (G.catchFlash) G.catchFlash = Math.max(0, G.catchFlash - dt);
   switch(G.phase){
     case 'formation':
-      if (!isHuman(G.off)){ G.t += dt; if (G.t > 0.9) chooseFormation(rnd()*4|0); }
+      if (!isHuman(G.off)) chooseFormation(rnd()*4|0);   // instant (user, v0.23)
       else if (input.formKey !== null) chooseFormation(input.formKey);
       break;
     case 'hwalk':   // the computer always makes its calls before you make yours (user, v0.22)
@@ -876,10 +879,10 @@ function promptText(){
   const offH = isHuman(G.off), defH = isHuman(G.def), d = G.d;
   const fwd = d>0?'→':'←', back = d>0?'←':'→';
   switch(G.phase){
-    case 'formation': return offH ? 'CHOOSE A FORMATION' : TEAM[G.off].name+' IN THE HUDDLE…';
+    case 'formation': return offH ? 'CHOOSE A FORMATION' : '';
     case 'hwalk': return offH ? 'BREAKING THE HUDDLE…' : '';
-    case 'routes': return offH ? (G.waiting ? `ROUTE:  ${fwd} STREAK   ${back} HOOK   ↑ / ↓ 6-YD OUT / IN` : '') : TEAM[G.off].name+' CALLING ROUTES…';
-    case 'guess': return defH ? (G.waiting ? `GUESS:  ${fwd} STREAK   ${back} HOOK   ↑ / ↓ 6-YD OUT / IN` : '') : TEAM[G.def].name+' GUESSING ROUTES…';
+    case 'routes': return offH ? (G.waiting ? `ROUTE:  ${fwd} STREAK   ${back} HOOK   ↑ / ↓ 6-YD OUT / IN` : '') : '';
+    case 'guess': return defH ? (G.waiting ? `GUESS:  ${fwd} STREAK   ${back} HOOK   ↑ / ↓ 6-YD OUT / IN` : '') : '';
     case 'presnap': return '';
     case 'live':
       if (G.mode === 'run' && G.ctl){
