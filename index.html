@@ -129,7 +129,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.57</small>
+    <small id="ver">Version 0.59</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -905,8 +905,11 @@ function cpuShouldDive(c, dirT, chasers){
   for (const L of lines){
     const dl = (L - c.x)*dirT;
     if (dl <= 0 || dl > reach) continue;
-    const tRun = dl / (roleSpd(c)*slowMul(c)), P = {x:L, y:c.y};
-    if (chasers.some(df => !(df.downT > 0) && Math.min(dist(df,c), dist(df,P)) - TACKLE <= roleSpd(df)*slowMul(df)*tRun)) return true;
+    /* v0.58 fix: check each spot along his run to the line. Before, a defender's distance to where the runner is NOW
+       counted, so a man chasing from behind (who can't catch him) set off a dive. */
+    const v = roleSpd(c)*slowMul(c);
+    for (let k = 1; k <= 8; k++){ const sd = dl*k/8, P = {x:c.x + dirT*sd, y:c.y}, tRun = sd / v;
+      if (chasers.some(df => !(df.downT > 0) && dist(df,P) - TACKLE <= roleSpd(df)*slowMul(df)*tRun)) return true; }
   }
   return false;
 }
@@ -1551,6 +1554,9 @@ function startGame(){
   ['title','final','how'].forEach(id => $(id).hidden = true);
   $('menu').hidden = false; newGame();
 }
+/* v0.59 fix: switching apps drops Chrome out of full screen, and a page is only allowed to go back to full screen on a tap
+   or key press. So while a game is going, the first tap or key press after coming back puts it in full screen again. */
+['touchend','pointerup','keydown'].forEach(ev => addEventListener(ev, () => { if (G && !DEMO) goFull(); }, true));
 function toTitle(){ G = null; $('menu').hidden = true; $('forms').hidden = true; $('final').hidden = true; $('quit').hidden = true; $('title').hidden = false; btnEl.textContent = ''; }
 function showFinal(){
   const [a,b] = G.score;
