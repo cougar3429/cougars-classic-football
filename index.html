@@ -89,6 +89,9 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .sws button { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--ink); cursor: pointer; padding: 0; box-shadow: 0 3px 0 var(--ink); }
 .sws button[aria-pressed="true"] { outline: 3px solid var(--gold); outline-offset: 2px; }
 
+.vols { display: flex; gap: 18px; align-items: center; }
+.vols label { display: flex; align-items: center; gap: 8px; font: 700 12px var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; }
+.vols input[type=range] { width: 120px; accent-color: var(--gold); }
 #rotate { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #12301d; color: var(--cream); text-align: center; padding: 24px; font-size: 18px; z-index: 50; }
 #rotate b { font-family: var(--font-display); font-weight: 400; font-size: 24px; color: var(--gold); }
 @media (orientation: portrait) and (max-width: 900px) { #rotate { display: flex; } }
@@ -122,8 +125,9 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
       <button type="button" class="selbtn colbtn" id="colb1" aria-label="Team colors"><span class="swp"><i></i><i></i></span>COLORS</button>
       <div class="row"><label>Controls</label><div class="seg" role="group" aria-label="Move the controls"><button type="button" id="ctlmove">MOVE</button><button type="button" id="ctlreset">RESET</button></div></div>
     </div>
+    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.24</small>
+    <small id="ver">Version 0.25</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -159,6 +163,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     <p>The score will be lost. The game is paused while you decide.</p>
     <div class="row"><button class="big-btn" id="qyes" type="button">QUIT TO MENU</button><button class="big-btn" id="qno" type="button" style="background:#2f6fe0">KEEP PLAYING</button></div>
     <button class="big-btn alt" id="qmove" type="button">MOVE CONTROLS</button>
+    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
   </section>
 
   <section class="screen" id="final" hidden>
@@ -330,21 +335,77 @@ $('ctlreset').addEventListener('click', ctlReset);
 $('ctldone').addEventListener('click', () => { ctlSave(); ctlEdit(false); });
 $('ctlres2').addEventListener('click', ctlReset);
 
-// ---------- sound: a metallic lock at the snap when any DB guessed his receiver's route (user, v0.24) ----------
-let AC = null;
-function audioOn(){ try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} }
-function playLock(){
-  if (!AC) return; const t0 = AC.currentTime;
-  const click = (t, f, vol) => {
-    // a bright metal "clack": two detuned square partials plus a short noise burst, all through a band-pass, fast decay
-    const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+0.003); g.gain.exponentialRampToValueAtTime(0.0001, t+0.09);
-    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f*1.3; bp.Q.value = 6; bp.connect(g); g.connect(AC.destination);
-    [f, f*1.47, f*2.09].forEach(fr => { const o = AC.createOscillator(); o.type = 'square'; o.frequency.value = fr; o.connect(bp); o.start(t); o.stop(t+0.1); });
-    const n = AC.createBuffer(1, Math.floor(AC.sampleRate*0.03), AC.sampleRate), d = n.getChannelData(0);
-    for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
-    const ns = AC.createBufferSource(); ns.buffer = n; ns.connect(bp); ns.start(t);
-  };
-  click(t0, 1900, 0.5); click(t0 + 0.075, 1250, 0.6);      // "ka-CHUNK"
+// ---------- sound (user, v0.24-v0.25): all made on the fly with Web Audio; the hike call uses the phone's speech voice ----------
+let AC = null, FX = null;
+const VOL = {fx:0.8, voice:0.8};
+try { const v = JSON.parse(localStorage.getItem('ccf-vol') || 'null'); if (v && isFinite(v.fx) && isFinite(v.voice)) { VOL.fx = v.fx; VOL.voice = v.voice; } } catch (e) {}
+function saveVol(){ try { localStorage.setItem('ccf-vol', JSON.stringify(VOL)); } catch (e) {} }
+function audioOn(){ try { if (!AC){ AC = new (window.AudioContext || window.webkitAudioContext)(); FX = AC.createGain(); FX.connect(AC.destination); }
+  FX.gain.value = VOL.fx; if (AC.state === 'suspended') AC.resume(); } catch (e) {} }
+function noiseBuf(sec){ const b = AC.createBuffer(1, Math.max(1, Math.floor(AC.sampleRate*sec)), AC.sampleRate), d = b.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; return b; }
+function env(g, t, a, peak, rel){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+a); g.gain.exponentialRampToValueAtTime(0.0001, t+a+rel); }
+function noiseThrough(t, sec, filt, peak, a){ const n = AC.createBufferSource(); n.buffer = noiseBuf(sec); const g = AC.createGain(); env(g, t, a||0.01, peak, sec);
+  n.connect(filt); filt.connect(g); g.connect(FX); n.start(t); n.stop(t+sec+0.05); return filt; }
+const SFX = {
+  lock(){   // metallic "ka-CHUNK": a DB is locked onto a route
+    const t0 = AC.currentTime;
+    const click = (t, f, vol) => { const g = AC.createGain(); env(g, t, 0.003, vol, 0.09);
+      const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f*1.3; bp.Q.value = 6; bp.connect(g); g.connect(FX);
+      [f, f*1.47, f*2.09].forEach(fr => { const o = AC.createOscillator(); o.type = 'square'; o.frequency.value = fr; o.connect(bp); o.start(t); o.stop(t+0.1); });
+      const ns = AC.createBufferSource(); ns.buffer = noiseBuf(0.03); ns.connect(bp); ns.start(t); };
+    click(t0, 1900, 0.5); click(t0 + 0.075, 1250, 0.6);
+  },
+  buzz(){   // electric bzzzzzzt: every route was guessed
+    const t = AC.currentTime, o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), ws = AC.createWaveShaper(), lfo = AC.createOscillator(), lg = AC.createGain();
+    const curve = new Float32Array(256); for (let i=0;i<256;i++){ const x = i/128-1; curve[i] = Math.tanh(x*6); } ws.curve = curve;
+    o.type = 'sawtooth'; o.frequency.value = 118; o2.type = 'square'; o2.frequency.value = 121;
+    lfo.frequency.value = 37; lg.gain.value = 0.35; lfo.connect(lg); lg.connect(g.gain);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t+0.02); g.gain.setValueAtTime(0.35, t+0.62); g.gain.exponentialRampToValueAtTime(0.0001, t+0.75);
+    o.connect(ws); o2.connect(ws); ws.connect(g); g.connect(FX); [o,o2,lfo].forEach(x => { x.start(t); x.stop(t+0.8); });
+    const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3000; noiseThrough(t, 0.7, hp, 0.08, 0.02);
+  },
+  whistle(){   // referee's pea whistle: the runner is down
+    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), trem = AC.createOscillator(), tg = AC.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(2750, t); trem.frequency.value = 28; tg.gain.value = 120; trem.connect(tg); tg.connect(o.frequency);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.28, t+0.02); g.gain.setValueAtTime(0.28, t+0.42); g.gain.exponentialRampToValueAtTime(0.0001, t+0.55);
+    o.connect(g); g.connect(FX); o.start(t); trem.start(t); o.stop(t+0.6); trem.stop(t+0.6);
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2800; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.05, 0.02);
+  },
+  tackle(){   // pads hitting + body on turf
+    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t+0.18); env(g, t, 0.005, 0.7, 0.22);
+    o.connect(g); g.connect(FX); o.start(t); o.stop(t+0.3);
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; noiseThrough(t, 0.12, lp, 0.45, 0.003);
+  },
+  slide(){   // sliding across the grass after a dive
+    const t = AC.currentTime, bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(1600, t); bp.frequency.exponentialRampToValueAtTime(500, t+0.45); noiseThrough(t, 0.45, bp, 0.3, 0.02);
+  },
+  swoosh(){   // mellow swoosh: a pass is thrown
+    const t = AC.currentTime, bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2;
+    bp.frequency.setValueAtTime(350, t); bp.frequency.exponentialRampToValueAtTime(1100, t+0.18); bp.frequency.exponentialRampToValueAtTime(500, t+0.4);
+    noiseThrough(t, 0.4, bp, 0.22, 0.12);
+  },
+  cheer(){   // touchdown: crowd roar swelling up with a couple of horn blasts
+    const t = AC.currentTime;
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.7;
+    const n = AC.createBufferSource(); n.buffer = noiseBuf(2.6); const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t+0.5); g.gain.setValueAtTime(0.4, t+1.6); g.gain.exponentialRampToValueAtTime(0.0001, t+2.5);
+    n.connect(bp); bp.connect(g); g.connect(FX); n.start(t); n.stop(t+2.6);
+    for (let k=0;k<7;k++){ const st = t + 0.2 + Math.random()*1.4, o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
+      o.type = 'triangle'; o.frequency.setValueAtTime(500+Math.random()*300, st); o.frequency.exponentialRampToValueAtTime(900+Math.random()*400, st+0.35);
+      env(og, st, 0.05, 0.05, 0.35); o.connect(og); og.connect(FX); o.start(st); o.stop(st+0.5); }
+    [0, 0.32].forEach((dt2, k) => { const st = t + 0.15 + dt2; [233, 294, 349].forEach(f => { const o = AC.createOscillator(), og = AC.createGain();
+      o.type = 'sawtooth'; o.frequency.value = f*(k?1.26:1); const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
+      env(og, st, 0.02, 0.07, 0.28); o.connect(lp); lp.connect(og); og.connect(FX); o.start(st); o.stop(st+0.35); }); });
+  }
+};
+function sfx(name){ try { if (AC && FX && VOL.fx > 0) SFX[name](); } catch (e) {} }
+function playLock(){ sfx('lock'); }
+function sayHut(){   // "Hut! Hut!" when you press the hike button
+  try { if (!window.speechSynthesis || VOL.voice <= 0) return; speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance('Hut! Hut!'); u.rate = 1.25; u.pitch = 0.7; u.volume = VOL.voice; speechSynthesis.speak(u); } catch (e) {}
 }
 
 // ---------- constants ----------
@@ -359,7 +420,9 @@ const goalX = t => t === 0 ? 110 : 10;          // goal line team t attacks
 const own20 = t => t === 0 ? 30 : 90;
 const QUARTER_SEC = 15*60, CLOCK_SCALE = 5, BETWEEN_PLAYS = 40;
 /* running speeds were cut in half (user, Nov 8, version 0.3) */
-const SPD = {walk:5, qb:3.1, wr:3.5, carrier:3.15, ol:2.5, db:3.5, dbChase:3.5, mirror:3.5, lb:3.25, dl:1.8, ball:17};
+/* every speed slowed another 20% (user, v0.25) */
+const SLOW = 0.8;
+const SPD = {walk:5*SLOW, qb:3.1*SLOW, wr:3.5*SLOW, carrier:3.15*SLOW, ol:2.5*SLOW, db:3.5*SLOW, dbChase:3.5*SLOW, mirror:3.5*SLOW, lb:3.25*SLOW, dl:1.8*SLOW, ball:17*SLOW, dive:5*SLOW};
 const ROLE_SPD = {DB:SPD.dbChase, LB:SPD.lb, DL:SPD.dl};
 const ROUTES = ['up','down','streak','hook'];
 const FORMS = [{n:'TRIPS LEFT',L:3},{n:'2 LEFT 1 RIGHT',L:2},{n:'2 RIGHT 1 LEFT',L:1},{n:'TRIPS RIGHT',L:0}];
@@ -392,7 +455,7 @@ function changePoss(team, x){ G.poss = team; G.los = x; setFirstDown(); }
 function startHuddle(){
   const off = G.poss, def = 1-off, d = dirOf(off);
   Object.assign(G, {off, def, d});
-  G.oc = {x:G.los-d*6, y:MID}; G.dc = {x:G.los+d*6, y:MID};
+  G.oc = {x:G.los-d*5, y:MID}; G.dc = {x:G.los+d*2, y:MID};   // offense huddles 5 yards behind the line, defense near it (user, v0.25)
   G.qb = mk('QB', off, G.oc.x+d*0.3, MID); G.qb.face = d>0?Math.PI:0;
   G.lb = mk('LB', def, G.dc.x-d*0.3, MID); G.lb.face = d>0?0:Math.PI;
   G.wrs=[]; G.ols=[]; G.dbs=[]; G.dls=[];
@@ -513,7 +576,7 @@ function snap(){
   const d = G.d;
   G.phase = 'live'; G.mode = 'pass'; G.tapNoDir = false; G.liveT = 0; G.aimArmed = false; G.ctl = null; G.ballTeam = G.off; G.stats.plays++;
   G.cq = {think:0, scramble:false};
-  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; }
+  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); }
   for (const w of G.wrs){ w.wp = routeWaypoints(w.route, w.x, w.y, d); w.wpi = 0; w.stopped = false; }
   for (const b of G.dbs){
     const w = b.cover;
@@ -642,7 +705,7 @@ function throwTo(w){
   p = {x:clamp(p.x,0,FL), y:clamp(p.y,0.9,FW-0.25)};
   const D = dist(q,p);
   G.ball = {state:'air', sx:q.x, sy:q.y, tx:p.x, ty:p.y, t:0, T:Math.max(D/SPD.ball,0.25), target:w, h:Math.min(2.5, 0.3+D*0.1)};
-  G.mode = 'air'; q.vx = q.vy = 0; G.throwT = G.liveT;
+  G.mode = 'air'; q.vx = q.vy = 0; G.throwT = G.liveT; sfx('swoosh');
 }
 function followRoute(w, dt){
   if (w.stopped || !w.wp){ w.vx = w.vy = 0; return; }
@@ -788,15 +851,15 @@ function sim(dt){
     const me = humanDefender();
     if (me && !me.dive && !(me.downT > 0)){
       const h = held(), vx = h.right-h.left, vy = h.down-h.up, n = Math.hypot(vx,vy);
-      if (n){ me.dive = {t:0, vx:vx/n*5, vy:vy/n*5}; if (vx) me.facing = Math.sign(vx); }
+      if (n){ me.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; if (vx) me.facing = Math.sign(vx); }
     }
   }
   for (const p of G.all){
     if (p.dive){ p.x += p.dive.vx*dt; p.y += p.dive.vy*dt; p.vx = p.dive.vx; p.vy = p.dive.vy; p.dive.t += dt;
-      if (p.dive.t >= 0.3){ p.dive = null; p.downT = 0.8; p.vx = p.vy = 0; } }
+      if (p.dive.t >= 0.3){ p.dive = null; p.downT = 0.8; p.vx = p.vy = 0; sfx('slide'); } }
     else if (p.downT > 0){ p.downT -= dt; p.vx = p.vy = 0; }
   }
-  for (const p of G.all){ if (p.slowT > 0) p.slowT -= dt; for (const [k,v] of p.imm){ if (v - dt <= 0) p.imm.delete(k); else p.imm.set(k, v - dt); } }
+  for (const p of G.all){ if (p.slowT > 0) p.slowT -= dt; for (const m of [p.imm, p.timm]) for (const [k,v] of m){ if (v - dt <= 0) m.delete(k); else m.set(k, v - dt); } }
   if (G.mode === 'pass') passStep(dt);
   else if (G.mode === 'air'){ airStep(dt); if (G.phase !== 'live') return; }
   else runStep(dt);
@@ -806,8 +869,13 @@ function sim(dt){
   if (G.ball.state !== 'held') return;
   const c = G.ball.carrier, T = G.ballTeam, dirT = dirOf(T);
   if ((c.x-goalX(T))*dirT >= 0) return endPlay('TD', {team:T});
-  for (const o of G.all){
-    if (o.team === T || dist(o,c) >= TACKLE) continue;
+  /* tackles (user, v0.25): a 1-on-1 attempt is broken 20% of the time; a dive is never broken. After breaking a man's
+     tackle, the ball carrier is immune to that man's tackle attempts for 2 seconds — except a dive. Two or more at once: tackled. */
+  const hitters = G.all.filter(o => o.team !== T && dist(o,c) < TACKLE && (o.dive || !((c.timm.get(o)||0) > 0)));
+  if (hitters.length){
+    if (hitters.length === 1 && !hitters[0].dive) G.stats.v1 = (G.stats.v1||0) + 1; else G.stats.multi = (G.stats.multi||0) + 1;
+    if (hitters.length === 1 && !hitters[0].dive && rnd() < 0.2){ c.timm.set(hitters[0], 2.0); G.stats.broken = (G.stats.broken||0) + 1; return; }
+    sfx('tackle');
     const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
     if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack: c===G.qb && G.mode==='pass'});
     return endPlay('INTDOWN', {x: inOwnEZ ? null : c.x});
@@ -829,6 +897,7 @@ function endPlay(type, info){
   G.phase = 'dead'; G.t = 0; G.lastPlay = type;
   const bc = G.ball && G.ball.state === 'held' ? G.ball.carrier : null;
   if (type === 'TD') G.tdBy = bc; else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') G.downed = bc;
+  if (type === 'TD') sfx('cheer'); else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
   switch(type){
     case 'TD': { const T = info.team; G.score[T] += 7; G.stats.td[T]++; if (T === def) G.stats.pick6++;
       text = 'TOUCHDOWN!'; sub = TEAM[T].name+' +7'; scored = true; changePoss(1-T, own20(1-T)); break; }
@@ -856,6 +925,8 @@ function nextPlay(){
   startHuddle();
 }
 
+/* every receiver's route guessed: electric buzz right after the last call is made (user, v0.25) */
+function allGuessedCheck(){ if (G.dbs.every(b => b.cover && b.guess === b.cover.route)) sfx('buzz'); }
 // ---------- main update ----------
 function update(dt){
   if (!G || G.paused) { input.btnEdge = input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null; return; }
@@ -871,11 +942,11 @@ function update(dt){
       break;
     case 'routes':
       visitStep(dt, G.qb, G.wrs, G.oc, isHuman(G.off), (p,r)=>{ p.route = r; },
-        () => { if (G.guessFirst){ setAlign(); G.phase = 'align'; } else { G.phase = 'guess'; G.visit = 0; G.wait = 0; } });
+        () => { if (G.guessFirst){ allGuessedCheck(); setAlign(); G.phase = 'align'; } else { G.phase = 'guess'; G.visit = 0; G.wait = 0; } });
       break;
     case 'guess':
       visitStep(dt, G.lb, G.dbs, G.dc, isHuman(G.def), (p,r)=>{ p.guess = r; },
-        () => { if (G.guessFirst){ G.phase = 'routes'; G.visit = 0; G.wait = 0; } else { setAlign(); G.phase = 'align'; } });
+        () => { if (G.guessFirst){ G.phase = 'routes'; G.visit = 0; G.wait = 0; } else { allGuessedCheck(); setAlign(); G.phase = 'align'; } });
       break;
     case 'align':
       if (walkAll(dt)){
@@ -885,7 +956,7 @@ function update(dt){
       break;
     case 'presnap':
       G.t += dt;
-      if (isHuman(G.off) ? input.btnEdge : G.t > 0.9) snap();
+      if (isHuman(G.off) ? input.btnEdge : G.t > 0.9){ if (isHuman(G.off)) sayHut(); snap(); }
       break;
     case 'live': sim(dt); break;
     case 'dead': G.t += dt; if (G.t > 1.8) nextPlay(); break;
@@ -1257,7 +1328,8 @@ function draw(){
   if (G.phase !== 'gameover') drawDownBox();
   const showKeys = G.phase === 'presnap' || G.phase === 'live';
   if (showKeys) drawThrowBadges(0);
-  if (G.phase === 'live') for (const w of G.wrs){   // dashed red ring: a DB is locked onto this receiver's route (user, v0.24)
+  const caughtOrPicked = G.mode === 'run' && G.ball.state === 'held' && G.ball.carrier !== G.qb;   // gone after a catch or interception (user, v0.25)
+  if (G.phase === 'live' && !caughtOrPicked) for (const w of G.wrs){   // dashed red ring: a DB is locked onto this receiver's route (user, v0.24)
     const db = G.dbs.find(b => b.cover === w); if (!db || db.mode !== 'mirror') continue;
     ctx.save(); ctx.strokeStyle = '#e0413b'; ctx.lineWidth = 2.5; ctx.setLineDash([5,4]);
     ctx.beginPath(); ctx.ellipse(X(w.x), Y(w.y), FIG*0.34, FIG*0.09, 0, 0, 7); ctx.stroke(); ctx.restore(); }
@@ -1293,6 +1365,7 @@ function draw(){
 // ---------- screens ----------
 Object.assign(TEAM[0], teamLook(curKit().home)); Object.assign(TEAM[1], teamLook({p: curKit().home.p==='red'?'blue':'red', s:'white'}));
 function startGame(){
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();   // so Space doesn't re-press a menu button
   ['title','final','how'].forEach(id => $(id).hidden = true);
   $('menu').hidden = false; newGame();
 }
@@ -1315,6 +1388,13 @@ $('qno').addEventListener('click', () => { $('quit').hidden = true; if (G) G.pau
 $('qyes').addEventListener('click', toTitle);
 $('again').addEventListener('click', () => { audioOn(); startGame(); });
 $('fmenu').addEventListener('click', toTitle);
+
+// volume sliders (title screen and in-game menu), saved on this phone
+function syncVol(){ document.querySelectorAll('.vfx').forEach(r => r.value = Math.round(VOL.fx*100)); document.querySelectorAll('.vvoice').forEach(r => r.value = Math.round(VOL.voice*100)); }
+document.querySelectorAll('.vfx').forEach(r => r.addEventListener('input', () => { VOL.fx = r.value/100; audioOn(); if (FX) FX.gain.value = VOL.fx; saveVol(); syncVol(); }));
+document.querySelectorAll('.vvoice').forEach(r => r.addEventListener('input', () => { VOL.voice = r.value/100; saveVol(); syncVol(); }));
+syncVol();
+document.addEventListener('pointerdown', () => audioOn(), {once:true, capture:true});
 
 // ---------- loop ----------
 let last = performance.now();
