@@ -127,7 +127,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.29</small>
+    <small id="ver">Version 0.30</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -876,7 +876,8 @@ function sim(dt){
   const hitters = G.all.filter(o => o.team !== T && dist(o,c) < TACKLE && (o.dive || !((c.timm.get(o)||0) > 0)));
   if (hitters.length){
     if (hitters.length === 1 && !hitters[0].dive) G.stats.v1 = (G.stats.v1||0) + 1; else G.stats.multi = (G.stats.multi||0) + 1;
-    if (hitters.length === 1 && !hitters[0].dive && rnd() < 0.2){ c.timm.set(hitters[0], 2.0); G.stats.broken = (G.stats.broken||0) + 1; return; }
+    if (hitters.length === 1 && !hitters[0].dive && rnd() < 0.2){ c.timm.set(hitters[0], 2.0); c.spinT = 0.4;   // broken tackle: spin move (user, v0.30)
+      G.stats.broken = (G.stats.broken||0) + 1; return; }
     sfx('tackle');
     const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
     if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack: c===G.qb && G.mode==='pass'});
