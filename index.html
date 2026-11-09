@@ -127,7 +127,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.30</small>
+    <small id="ver">Version 0.33</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -403,9 +403,29 @@ const SFX = {
 };
 function sfx(name){ try { if (AC && FX && VOL.fx > 0) SFX[name](); } catch (e) {} }
 function playLock(){ sfx('lock'); }
-function sayHut(){   // "Hut! Hut!" when you press the hike button
-  try { if (!window.speechSynthesis || VOL.voice <= 0) return; speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance('Hut! Hut!'); u.rate = 1.25; u.pitch = 0.7; u.volume = VOL.voice; speechSynthesis.speak(u); } catch (e) {}
+function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant the ball is snapped (user, v0.31)
+  try { if (!AC || VOL.voice <= 0) return; const t0 = AC.currentTime;
+    const out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
+    const hut = (t) => {
+      // "h": a breathy puff
+      const hb = AC.createBiquadFilter(); hb.type = 'bandpass'; hb.frequency.value = 1400; hb.Q.value = 0.8;
+      const hn = AC.createBufferSource(); hn.buffer = noiseBuf(0.07); const hg = AC.createGain(); env(hg, t, 0.01, 0.25, 0.06);
+      hn.connect(hb); hb.connect(hg); hg.connect(out); hn.start(t);
+      // "u": a short shouted vowel — a buzzy voice source through two vowel formants, pitch falling
+      const v0 = t + 0.04, src = AC.createOscillator(); src.type = 'sawtooth';
+      src.frequency.setValueAtTime(175, v0); src.frequency.exponentialRampToValueAtTime(125, v0 + 0.13);
+      const vg = AC.createGain(); vg.gain.setValueAtTime(0.0001, v0); vg.gain.exponentialRampToValueAtTime(0.9, v0 + 0.015);
+      vg.gain.setValueAtTime(0.9, v0 + 0.1); vg.gain.exponentialRampToValueAtTime(0.0001, v0 + 0.14);
+      [[650, 6, 1.0], [1150, 8, 0.6], [2450, 10, 0.25]].forEach(([f, q, a]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+        const fg = AC.createGain(); fg.gain.value = a; src.connect(bp); bp.connect(fg); fg.connect(vg); });
+      vg.connect(out); src.start(v0); src.stop(v0 + 0.16);
+      // "t": a sharp stop and click
+      const tb = AC.createBiquadFilter(); tb.type = 'highpass'; tb.frequency.value = 3500;
+      const tn = AC.createBufferSource(); tn.buffer = noiseBuf(0.03); const tg = AC.createGain(); env(tg, v0 + 0.15, 0.002, 0.35, 0.025);
+      tn.connect(tb); tb.connect(tg); tg.connect(out); tn.start(v0 + 0.15);
+    };
+    hut(t0); hut(t0 + 0.215);   // second "hut" starts right as the first one ends (user, v0.32)
+  } catch (e) {}
 }
 
 // ---------- constants ----------
@@ -510,7 +530,7 @@ function setAlign(){
   G.dbs.forEach((b,i) => { b.tx = L+d*2.6; b.ty = G.wrs[i].alignY; });
   G.lb.tx = L+d*5; G.lb.ty = MID;                      // 5 yards off the line (user, v0.16)
 }
-const slowMul = p => p.slowT > 0 ? 0.5 : 1;     // a block halves both players speed for 1 s
+const slowMul = p => (p.slowT > 0 ? 0.5 : 1) * (p.boost ? 1.2 : 1);   // a block halves speed for 1 s; catch-up boost +20% (user, v0.31)
 function moveToward(p, t, spd, dt){
   if (p.dive || p.downT > 0) return false;      // diving or on the ground after a dive
   spd *= slowMul(p);
@@ -579,7 +599,7 @@ function snap(){
   const d = G.d;
   G.phase = 'live'; G.mode = 'pass'; G.tapNoDir = false; G.liveT = 0; G.aimArmed = false; G.ctl = null; G.ballTeam = G.off; G.stats.plays++;
   G.cq = {think:0, scramble:false};
-  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; }
+  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; }
   for (const w of G.wrs){ w.wp = routeWaypoints(w.route, w.x, w.y, d); w.wpi = 0; w.stopped = false; }
   for (const b of G.dbs){
     const w = b.cover;
@@ -840,7 +860,7 @@ function doBlocks(){
     if ((o.imm.get(b)||0) > 0 || dist(b,o) > BLOCK_R) continue;   // immune only to the player who just blocked him
     if (o.slip === b) continue;                                       // still in the contact he avoided
     if (o.beatsFirst){ o.beatsFirst = false; o.slip = b; o.spinT = 0.4; continue; }  // he avoids the initial block only (user, v0.20), with a spin move (user, v0.29)
-    o.slowT = 1.0; b.slowT = 1.0; o.imm.set(b, 3.0); G.stats.blocks++;   // 1 s block + 2 s after it ends
+    o.slowT = 1.0; b.slowT = 1.0; o.blockedT = 1.0; o.imm.set(b, 3.0); G.stats.blocks++;   // 1 s block + 2 s after it ends
   }
 }
 function sim(dt){
@@ -851,17 +871,23 @@ function sim(dt){
      He covers 1.5 yards in 0.3 s, then stays on the ground 0.8 s. No direction held = no running direction = no dive. */
   if (isHuman(G.def) && input.btnEdge){
     const me = humanDefender();
-    if (me && !me.dive && !(me.downT > 0)){
+    if (me && !me.dive && !(me.downT > 0) && !(me.blockedT > 0)){   // no diving while being blocked (user, v0.33)
       const h = held(), vx = h.right-h.left, vy = h.down-h.up, n = Math.hypot(vx,vy);
       if (n){ me.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; if (vx) me.facing = Math.sign(vx); }
     }
   }
   for (const p of G.all){
-    if (p.dive){ p.x += p.dive.vx*dt; p.y += p.dive.vy*dt; p.vx = p.dive.vx; p.vy = p.dive.vy; p.dive.t += dt;
+    if (p.dive){ const m = p.boost ? 1.2 : 1;   // catch-up boost applies to the dive too (user, v0.33)
+      p.x += p.dive.vx*m*dt; p.y += p.dive.vy*m*dt; p.vx = p.dive.vx*m; p.vy = p.dive.vy*m; p.dive.t += dt;
       if (p.dive.t >= 0.3){ p.dive = null; p.downT = 0.8; p.vx = p.vy = 0; sfx('slide'); } }
     else if (p.downT > 0){ p.downT -= dt; p.vx = p.vy = 0; }
   }
-  for (const p of G.all){ if (p.spinT > 0) p.spinT -= dt; if (p.slowT > 0) p.slowT -= dt; for (const m of [p.imm, p.timm]) for (const [k,v] of m){ if (v - dt <= 0) m.delete(k); else m.set(k, v - dt); } }
+  /* catch-up (user, v0.31): anyone the ball carrier has gotten past runs 20% faster once he's been behind for 2 seconds,
+     until he's caught back up with the runner */
+  if (G.ball.state === 'held'){ const c = G.ball.carrier, dirT = dirOf(G.ballTeam);
+    for (const p of G.all){ if (p === c){ p.behindT = 0; p.boost = false; continue; }
+      if ((c.x - p.x)*dirT > 0){ p.behindT += dt; if (p.behindT >= 2) p.boost = true; } else { p.behindT = 0; p.boost = false; } } }
+  for (const p of G.all){ if (p.blockedT > 0) p.blockedT -= dt; if (p.spinT > 0) p.spinT -= dt; if (p.slowT > 0) p.slowT -= dt; for (const m of [p.imm, p.timm]) for (const [k,v] of m){ if (v - dt <= 0) m.delete(k); else m.set(k, v - dt); } }
   if (G.mode === 'pass') passStep(dt);
   else if (G.mode === 'air'){ airStep(dt); if (G.phase !== 'live') return; }
   else runStep(dt);
