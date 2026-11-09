@@ -127,7 +127,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.33</small>
+    <small id="ver">Version 0.35</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -403,28 +403,25 @@ const SFX = {
 };
 function sfx(name){ try { if (AC && FX && VOL.fx > 0) SFX[name](); } catch (e) {} }
 function playLock(){ sfx('lock'); }
-function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant the ball is snapped (user, v0.31)
+function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant the ball is snapped (user, v0.31; quicker, no clicks v0.35)
   try { if (!AC || VOL.voice <= 0) return; const t0 = AC.currentTime;
     const out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
     const hut = (t) => {
-      // "h": a breathy puff
-      const hb = AC.createBiquadFilter(); hb.type = 'bandpass'; hb.frequency.value = 1400; hb.Q.value = 0.8;
-      const hn = AC.createBufferSource(); hn.buffer = noiseBuf(0.07); const hg = AC.createGain(); env(hg, t, 0.01, 0.25, 0.06);
-      hn.connect(hb); hb.connect(hg); hg.connect(out); hn.start(t);
-      // "u": a short shouted vowel — a buzzy voice source through two vowel formants, pitch falling
-      const v0 = t + 0.04, src = AC.createOscillator(); src.type = 'sawtooth';
-      src.frequency.setValueAtTime(175, v0); src.frequency.exponentialRampToValueAtTime(125, v0 + 0.13);
-      const vg = AC.createGain(); vg.gain.setValueAtTime(0.0001, v0); vg.gain.exponentialRampToValueAtTime(0.9, v0 + 0.015);
-      vg.gain.setValueAtTime(0.9, v0 + 0.1); vg.gain.exponentialRampToValueAtTime(0.0001, v0 + 0.14);
+      // "h": a soft breath leading into the vowel
+      const hb = AC.createBiquadFilter(); hb.type = 'bandpass'; hb.frequency.value = 1200; hb.Q.value = 0.7;
+      const hn = AC.createBufferSource(); hn.buffer = noiseBuf(0.06); const hg = AC.createGain();
+      hg.gain.setValueAtTime(0.0001, t); hg.gain.exponentialRampToValueAtTime(0.12, t+0.02); hg.gain.exponentialRampToValueAtTime(0.0001, t+0.05);
+      hn.connect(hb); hb.connect(hg); hg.connect(out); hn.start(t); hn.stop(t+0.06);
+      // "ut": a short shouted vowel with a smooth start and a quick, smooth stop
+      const v0 = t + 0.025, src = AC.createOscillator(); src.type = 'sawtooth';
+      src.frequency.setValueAtTime(175, v0); src.frequency.exponentialRampToValueAtTime(130, v0 + 0.1);
+      const vg = AC.createGain(); vg.gain.setValueAtTime(0.0001, v0); vg.gain.exponentialRampToValueAtTime(0.9, v0 + 0.02);
+      vg.gain.setValueAtTime(0.9, v0 + 0.07); vg.gain.exponentialRampToValueAtTime(0.0001, v0 + 0.11);
       [[650, 6, 1.0], [1150, 8, 0.6], [2450, 10, 0.25]].forEach(([f, q, a]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
         const fg = AC.createGain(); fg.gain.value = a; src.connect(bp); bp.connect(fg); fg.connect(vg); });
-      vg.connect(out); src.start(v0); src.stop(v0 + 0.16);
-      // "t": a sharp stop and click
-      const tb = AC.createBiquadFilter(); tb.type = 'highpass'; tb.frequency.value = 3500;
-      const tn = AC.createBufferSource(); tn.buffer = noiseBuf(0.03); const tg = AC.createGain(); env(tg, v0 + 0.15, 0.002, 0.35, 0.025);
-      tn.connect(tb); tb.connect(tg); tg.connect(out); tn.start(v0 + 0.15);
+      vg.connect(out); src.start(v0); src.stop(v0 + 0.12);
     };
-    hut(t0); hut(t0 + 0.215);   // second "hut" starts right as the first one ends (user, v0.32)
+    hut(t0); hut(t0 + 0.14);   // second "hut" right as the first ends
   } catch (e) {}
 }
 
@@ -860,7 +857,7 @@ function doBlocks(){
     if ((o.imm.get(b)||0) > 0 || dist(b,o) > BLOCK_R) continue;   // immune only to the player who just blocked him
     if (o.slip === b) continue;                                       // still in the contact he avoided
     if (o.beatsFirst){ o.beatsFirst = false; o.slip = b; o.spinT = 0.4; continue; }  // he avoids the initial block only (user, v0.20), with a spin move (user, v0.29)
-    o.slowT = 1.0; b.slowT = 1.0; o.blockedT = 1.0; o.imm.set(b, 3.0); G.stats.blocks++;   // 1 s block + 2 s after it ends
+    o.slowT = 1.0; b.slowT = 1.0; o.blockedT = 1.0; b.blockedT = 1.0; o.imm.set(b, 3.0);   // both players are engaged in the block for 1 s G.stats.blocks++;   // 1 s block + 2 s after it ends
   }
 }
 function sim(dt){
@@ -871,7 +868,7 @@ function sim(dt){
      He covers 1.5 yards in 0.3 s, then stays on the ground 0.8 s. No direction held = no running direction = no dive. */
   if (isHuman(G.def) && input.btnEdge){
     const me = humanDefender();
-    if (me && !me.dive && !(me.downT > 0) && !(me.blockedT > 0)){   // no diving while being blocked (user, v0.33)
+    if (me && !me.dive && !(me.downT > 0) && !(me.blockedT > 0)){   // no diving while engaged in a block, blocker or blocked (user, v0.34)
       const h = held(), vx = h.right-h.left, vy = h.down-h.up, n = Math.hypot(vx,vy);
       if (n){ me.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; if (vx) me.facing = Math.sign(vx); }
     }
