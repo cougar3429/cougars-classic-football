@@ -127,7 +127,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.46</small>
+    <small id="ver">Version 0.52</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -143,7 +143,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
       Guess right and he blankets that receiver. After the snap you steer the linebacker; press the button while running to dive.</p>
     <p><b>Running.</b> The QB can run any time, but once he crosses the line he can't pass. After a catch or an
       interception the computer keeps everyone moving until you press a direction; then you take over the ball carrier,
-      or the player closest to him. Teammates of the ball carrier try to get in front of him to block.</p>
+      or the player closest to him. A ball carrier can dive too: if an opponent touches him during the dive he's down where he lands; if nobody touches him before he's up, he keeps running. Teammates of the ball carrier try to get in front of him to block.</p>
     <p>Keyboard: arrows or WASD, Space = button, 1–4 = formation.</p>
   </section>
 
@@ -456,7 +456,7 @@ const SLOW = 0.8;
 /* one running speed for every player (user, v0.27: "I never said to make players different speeds") */
 const RUN = 3.5*SLOW;
 const LINE = 2.3;   // offensive and defensive linemen run 2.3 yards per second (user, v0.28)
-const SPD = {walk:5*SLOW, qb:RUN, wr:RUN, carrier:RUN, ol:LINE, db:RUN, dbChase:RUN, mirror:RUN, lb:RUN, dl:LINE, ball:17*SLOW, dive:5*SLOW};
+const SPD = {walk:5*SLOW, qb:RUN, wr:RUN, carrier:RUN, ol:LINE, db:RUN, dbChase:RUN, mirror:RUN, lb:RUN, dl:LINE, ball:17*SLOW, dive:5*SLOW*1.15};   // dives go 15% farther (user, v0.48)
 const ROLE_SPD = {DB:SPD.dbChase, LB:SPD.lb, DL:SPD.dl};
 const ROUTES = ['up','down','streak','hook'];
 const FORMS = [{n:'TRIPS LEFT',L:3},{n:'2 LEFT 1 RIGHT',L:2},{n:'2 RIGHT 1 LEFT',L:1},{n:'TRIPS RIGHT',L:0}];
@@ -649,6 +649,22 @@ function humanMove(p, spd, dt){
   spd *= slowMul(p);
   if (n){ vx/=n; vy/=n; p.x += vx*spd*dt; p.y += vy*spd*dt; p.vx = vx*spd; p.vy = vy*spd; p.face = Math.atan2(vy,vx); }
   else { p.vx = 0; p.vy = 0; }
+}
+function tryDive(who){
+  const me = who || humanDefender();
+  if (me && !me.dive && !(me.downT > 0) && !(me.blockedT > 0)){   // no diving while engaged in a block, blocker or blocked (user, v0.34)
+    const h = held(), vx = h.right-h.left, vy = h.down-h.up, n = Math.hypot(vx,vy);
+    if (n){ me.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; me.touchedInAir = false; if (vx) me.facing = Math.sign(vx); }
+  }
+}
+function stepDives(dt){
+  for (const p of G.all){
+    if (p.dive && !p.grappled){ const m = p.boost ? 1.2 : 1;   // catch-up boost applies to the dive too (user, v0.33)
+      p.x += p.dive.vx*m*dt; p.y += p.dive.vy*m*dt; p.vx = p.dive.vx*m; p.vy = p.dive.vy*m; p.dive.t += dt;
+      p.y = clamp(p.y, 0.9, FW-0.25); p.x = clamp(p.x, 0.2, FL-0.2);
+      if (p.dive.t >= 0.3){ p.dive = null; p.downT = 0.5; p.vx = p.vy = 0; sfx('slide'); } }   // 0.5 s to get up (user, v0.48)
+    else if (p.downT > 0){ p.downT -= dt; p.vx = p.vy = 0; }
+  }
 }
 function humanDefender(){   // the defender you're steering right now
   if (!isHuman(G.def)) return null;
@@ -854,6 +870,7 @@ function doIntercept(p){
 // ---------- run mode: carrier runs, his teammates block, the other team pursues ----------
 function cpuRun(c, dirT, chasers, dt){
   if (c.dive || c.downT > 0 || c.grappled) return;
+  if (cpuShouldDive(c, dirT, chasers)){ c.dive = {t:0, vx:dirT*SPD.dive, vy:0}; c.touchedInAir = false; c.facing = dirT; return; }
   /* ball carrier (user, v0.19): goes for the goal line first, avoiding defenders only when necessary —
      a defender up to 3 yards ahead and within 1.5 yards to either side makes him cut away at 45 degrees */
   let vx = dirT, vy = 0, threat = null, td = 1e9;
@@ -866,6 +883,21 @@ function cpuRun(c, dirT, chasers, dt){
   }
   const n = Math.hypot(vx,vy), spd = roleSpd(c)*slowMul(c); vx/=n; vy/=n;
   c.x += vx*spd*dt; c.y += vy*spd*dt; c.vx = vx*spd; c.vy = vy*spd; c.face = Math.atan2(vy,vx);
+}
+/* computer ball carrier dives (user, v0.50) when the goal line, or the first-down line on offense, is within his dive's
+   reach straight ahead, and a defender could get to him before he'd reach that line just by running */
+function cpuShouldDive(c, dirT, chasers){
+  if (c.slowT > 0 || c.blockedT > 0) return false;
+  const reach = SPD.dive * 0.3 * (c.boost ? 1.2 : 1);
+  const lines = [goalX(G.ballTeam)];
+  if (G.ballTeam === G.off) lines.push(G.los + G.d*G.toGo);
+  for (const L of lines){
+    const dl = (L - c.x)*dirT;
+    if (dl <= 0 || dl > reach) continue;
+    const tRun = dl / (roleSpd(c)*slowMul(c)), P = {x:L, y:c.y};
+    if (chasers.some(df => !(df.downT > 0) && Math.min(dist(df,c), dist(df,P)) - TACKLE <= roleSpd(df)*slowMul(df)*tRun)) return true;
+  }
+  return false;
 }
 function pursue(p, c, dt){ moveToward(p, {x:c.x+c.vx*0.25, y:c.y+c.vy*0.25}, roleSpd(p), dt); }
 function blockAI(m, c, chasers, dirT, dt){
@@ -903,19 +935,11 @@ function sim(dt){
   if (G.ctl && G.ctl.pending && input.dirEdge) G.ctl.pending = false;   // first input after the change: you take over
   /* dive (user, v0.24): on defense the button makes the defender you control dive in his running direction (8-way).
      He covers 1.5 yards in 0.3 s, then stays on the ground 0.8 s. No direction held = no running direction = no dive. */
-  if (isHuman(G.def) && input.btnEdge){
-    const me = humanDefender();
-    if (me && !me.dive && !(me.downT > 0) && !(me.blockedT > 0)){   // no diving while engaged in a block, blocker or blocked (user, v0.34)
-      const h = held(), vx = h.right-h.left, vy = h.down-h.up, n = Math.hypot(vx,vy);
-      if (n){ me.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; if (vx) me.facing = Math.sign(vx); }
-    }
+  if (input.btnEdge){
+    if (isHuman(G.def)) tryDive();
+    else if (isHuman(G.off) && G.mode === 'run' && G.ctl && !G.ctl.pending && G.ball.state === 'held' && G.ctl.p === G.ball.carrier) tryDive(G.ctl.p);   // your ball carrier can dive (user, v0.49)
   }
-  for (const p of G.all){
-    if (p.dive && !p.grappled){ const m = p.boost ? 1.2 : 1;   // catch-up boost applies to the dive too (user, v0.33)
-      p.x += p.dive.vx*m*dt; p.y += p.dive.vy*m*dt; p.vx = p.dive.vx*m; p.vy = p.dive.vy*m; p.dive.t += dt;
-      if (p.dive.t >= 0.3){ p.dive = null; p.downT = 0.8; p.vx = p.vy = 0; sfx('slide'); } }
-    else if (p.downT > 0){ p.downT -= dt; p.vx = p.vy = 0; }
-  }
+  stepDives(dt);
   /* catch-up (user, v0.31): anyone the ball carrier has gotten past runs 20% faster once he's been behind for 2 seconds,
      until he's caught back up with the runner */
   if (G.ball.state === 'held'){ const c = G.ball.carrier, dirT = dirOf(G.ballTeam);
@@ -932,6 +956,18 @@ function sim(dt){
   if (G.grapple) return grappleStep(dt);
   const c = G.ball.carrier, T = G.ballTeam, dirT = dirOf(T);
   if ((c.x-goalX(T))*dirT >= 0) return endPlay('TD', {team:T});
+  /* a diving ball carrier (user, v0.49/v0.51): a touch while he's airborne doesn't put him down, but he's down the moment
+     he lands; a touch while he's on the ground (before he's back up) puts him down right there */
+  if (c.dive){ if (G.all.some(o => o.team !== T && dist(o,c) < TACKLE)) c.touchedInAir = true; return; }
+  if (c.downT > 0){
+    if (c.touchedInAir || G.all.some(o => o.team !== T && dist(o,c) < TACKLE)){
+      sfx('tackle'); G.downEarly = true;
+      const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
+      if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack:false});
+      return endPlay('INTDOWN', {x: inOwnEZ ? null : c.x});
+    }
+    return;
+  }
   /* tackles (user, v0.25): a 1-on-1 attempt is broken 20% of the time; a dive is never broken. After breaking a man's
      tackle, the ball carrier is immune to that man's tackle attempts for 2 seconds — except a dive. Two or more at once: tackled. */
   const hitters = G.all.filter(o => o.team !== T && dist(o,c) < TACKLE && (o.dive || !((c.timm.get(o)||0) > 0)));
@@ -981,7 +1017,7 @@ function endPlay(type, info){
   const off = G.off, def = G.def, d = G.d; let text = '', sub = '', scored = false;
   G.phase = 'dead'; G.t = 0; G.lastPlay = type;
   const bc = G.ball && G.ball.state === 'held' ? G.ball.carrier : null;
-  if (type === 'TD'){ G.tdBy = bc; G.tdOff = G.off; } else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now(); }
+  if (type === 'TD'){ G.tdBy = bc; G.tdOff = G.off; } else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
   if (type === 'TD') sfx('cheer'); else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
   switch(type){
     case 'TD': { const T = info.team; G.score[T] += 7; G.stats.td[T]++; if (T === def) G.stats.pick6++;
@@ -1056,6 +1092,8 @@ function update(dt){
     case 'dead':
       G.t += dt;
       if (hornAllowed()){ if (input.btnEdge) hornOn(); if (input.btnUpEdge || !input.btn) hornOff(); }   // the air horn (user, v0.39)
+      else if (isHuman(G.def) && G.t < 1 && input.btnEdge) tryDive();   // late dives, just for fun: up to 1 s after the whistle (user, v0.47)
+      stepDives(dt);
       if (G.t > (G.tdBy ? 4 : 1.8)){ hornOff(); nextPlay(); }   // 4 s to watch a touchdown celebration (user, v0.39)
       break;
     case 'gameover': break;
@@ -1212,7 +1250,13 @@ function poseFor(p, moving, spd){
     ? {...runPose(p.anim||0, 0.35, 0.45), arms:[{u:0.6,e:1.6},{u:0.35,e:2.0}]}           // carrier straining forward
     : {lean:0.85, hip:0.42, legs:[{t:0.5,k:1.0},{t:-0.2,k:0.6}], arms:[{u:1.5,e:0.6},{u:1.3,e:0.8}]};   // tackler wrapped up
   if (p.dive) return {lean:1.45, hip:0.42, legs:[{t:-1.0,k:0.3},{t:-0.7,k:0.2}], arms:[{u:1.55,e:0.05},{u:1.45,e:0.1}]};   // diving
-  if (p.downT > 0) return {...POSES.lying(), lying:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]};                              // down after a dive
+  if (p.downT > 0){   // after a dive: 0.1 s flat on the ground, then a 0.4 s get-up (user, v0.52)
+    const el = 0.5 - p.downT, g = Math.max(0, Math.min(1, (el - 0.1)/0.4));
+    if (g <= 0) return {...POSES.lying(), lying:true, dove:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]};
+    const kneel = Math.sin(Math.PI*g);   // knees come up under him halfway through, then straighten
+    return {lean:0.3*(1-g), hip:0.5 - 0.12*kneel, legs:[{t:0.6*kneel,k:1.6*kneel+0.15},{t:0.2*kneel,k:1.2*kneel+0.15}],
+            arms:[{u:0.35+0.6*(1-g),e:0.2},{u:0.25+0.6*(1-g),e:0.2}], lying:true, dove:true, fall:1-g};   // pushing up off the turf
+  }
   if (G.phase === 'dead' || G.phase === 'gameover'){
     if (p === G.downed){ const f = Math.min(1, (performance.now() - (G.downAt||0))/400);
       return f < 1 ? {...POSES.stand(), lying:true, fall:f, arms:[{u:1.2+1.4*f,e:0.3},{u:0.8+0.8*f,e:0.4}]} : {...POSES.lying(), lying:true}; }
@@ -1253,7 +1297,7 @@ function drawAthlete(p, x, y, dirX, pose, T){
   ctx.save(); ctx.translate(x, y);
   if (pose.lying){   // going down: a 0.4 s fall from upright to prone (user, v0.38)
     const f = pose.fall == null ? 1 : pose.fall, e = f*f*(3-2*f);
-    const fwd = p === G.downed ? 1 : -1;   // ball carriers fall forward, face first, the way HE was facing/running (user, v0.46)
+    const fwd = (p === G.downed || pose.dove) ? 1 : -1;   // ball carriers (v0.46) and divers land face first, the way they were going
     ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(fwd*dirX*Math.PI/2*0.96*e); }
   const spin = p.spinT > 0 ? Math.cos((1 - p.spinT/0.4) * 2*Math.PI) : 1;   // spin move: one full turn (user, v0.29)
   ctx.scale(dirX * (Math.abs(spin) < 0.12 ? 0.12*Math.sign(spin||1) : spin), 1);
