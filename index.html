@@ -123,7 +123,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
       <div class="row"><label>Controls</label><div class="seg" role="group" aria-label="Move the controls"><button type="button" id="ctlmove">MOVE</button><button type="button" id="ctlreset">RESET</button></div></div>
     </div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.23</small>
+    <small id="ver">Version 0.24</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -136,7 +136,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
       The QB can run any time, but can't pass once he crosses the line.</p>
     <p><b>Defense.</b> Your linebacker walks to each defensive back: tap the route you think his receiver will run, in the
       direction it will move on screen (the computer drives left, so <b>←</b> is the streak and <b>→</b> the hook).
-      Guess right and he blankets that receiver. After the snap you steer the linebacker.</p>
+      Guess right and he blankets that receiver. After the snap you steer the linebacker; press the button while running to dive.</p>
     <p><b>Running.</b> The QB can run any time, but once he crosses the line he can't pass. After a catch or an
       interception the computer keeps everyone moving until you press a direction; then you take over the ball carrier,
       or the player closest to him. Teammates of the ball carrier try to get in front of him to block.</p>
@@ -330,6 +330,23 @@ $('ctlreset').addEventListener('click', ctlReset);
 $('ctldone').addEventListener('click', () => { ctlSave(); ctlEdit(false); });
 $('ctlres2').addEventListener('click', ctlReset);
 
+// ---------- sound: a metallic lock at the snap when any DB guessed his receiver's route (user, v0.24) ----------
+let AC = null;
+function audioOn(){ try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} }
+function playLock(){
+  if (!AC) return; const t0 = AC.currentTime;
+  const click = (t, f, vol) => {
+    // a bright metal "clack": two detuned square partials plus a short noise burst, all through a band-pass, fast decay
+    const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+0.003); g.gain.exponentialRampToValueAtTime(0.0001, t+0.09);
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f*1.3; bp.Q.value = 6; bp.connect(g); g.connect(AC.destination);
+    [f, f*1.47, f*2.09].forEach(fr => { const o = AC.createOscillator(); o.type = 'square'; o.frequency.value = fr; o.connect(bp); o.start(t); o.stop(t+0.1); });
+    const n = AC.createBuffer(1, Math.floor(AC.sampleRate*0.03), AC.sampleRate), d = n.getChannelData(0);
+    for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+    const ns = AC.createBufferSource(); ns.buffer = n; ns.connect(bp); ns.start(t);
+  };
+  click(t0, 1900, 0.5); click(t0 + 0.075, 1250, 0.6);      // "ka-CHUNK"
+}
+
 // ---------- constants ----------
 const FL = 120, FW = 8.5, MID = FW/2;
 const TEAM = [{name:'COUGARS'}, {name:'BOMBERS'}];
@@ -429,6 +446,7 @@ function setAlign(){
 }
 const slowMul = p => p.slowT > 0 ? 0.5 : 1;     // a block halves both players speed for 1 s
 function moveToward(p, t, spd, dt){
+  if (p.dive || p.downT > 0) return false;      // diving or on the ground after a dive
   spd *= slowMul(p);
   const dx = t.x-p.x, dy = t.y-p.y, k = Math.hypot(dx,dy), step = spd*dt;
   if (k <= step || k < 1e-4){ p.x = t.x; p.y = t.y; p.vx = 0; p.vy = 0; return true; }
@@ -495,7 +513,7 @@ function snap(){
   const d = G.d;
   G.phase = 'live'; G.mode = 'pass'; G.tapNoDir = false; G.liveT = 0; G.aimArmed = false; G.ctl = null; G.ballTeam = G.off; G.stats.plays++;
   G.cq = {think:0, scramble:false};
-  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); }
+  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; }
   for (const w of G.wrs){ w.wp = routeWaypoints(w.route, w.x, w.y, d); w.wpi = 0; w.stopped = false; }
   for (const b of G.dbs){
     const w = b.cover;
@@ -503,15 +521,22 @@ function snap(){
     else { b.mode = 'wrong'; b.wpi = 0;
       b.wp = routeWaypoints(b.guess, w.x, w.y, d).map(p => ({x:p.x+(b.x-w.x), y:p.y+(b.y-w.y)})); }
   }
-  for (const dl of G.dls){ dl.beatsFirst = rnd() < 0.1; dl.slip = null; }    // 10% of the time a defensive lineman avoids the initial block (user, v0.18)
+  for (const dl of G.dls){ dl.beatsFirst = rnd() < 0.1; dl.slip = null; }   // 10% of the time a defensive lineman avoids the initial block (user, v0.18)
+  if (G.dbs.some(b => b.mode === 'mirror')) playLock();   // any DB locked onto his receiver's route: metallic lock sound (user, v0.24)
   G.lb.plan = rnd() < 0.3 ? 'blitz' : 'hold';          // computer linebacker blitzes on 30% of plays, from the snap (user, v0.16)
   G.ball = {state:'held', carrier:G.qb};
 }
 function humanMove(p, spd, dt){
+  if (p.dive || p.downT > 0) return;
   const h = held(); let vx = h.right-h.left, vy = h.down-h.up; const n = Math.hypot(vx,vy);
   spd *= slowMul(p);
   if (n){ vx/=n; vy/=n; p.x += vx*spd*dt; p.y += vy*spd*dt; p.vx = vx*spd; p.vy = vy*spd; p.face = Math.atan2(vy,vx); }
   else { p.vx = 0; p.vy = 0; }
+}
+function humanDefender(){   // the defender you're steering right now
+  if (!isHuman(G.def)) return null;
+  if (G.ctl) return G.ctl.pending ? null : (G.ctl.p.team === G.def ? G.ctl.p : null);
+  return G.lb;
 }
 function receiversByY(){ return [...G.wrs].sort((a,b)=>a.y-b.y); }
 /* throw arrows are handed out once the offense is set at the line: highest receiver on screen = up, middle = forward,
@@ -709,6 +734,7 @@ function doIntercept(p){
 
 // ---------- run mode: carrier runs, his teammates block, the other team pursues ----------
 function cpuRun(c, dirT, chasers, dt){
+  if (c.dive || c.downT > 0) return;
   /* ball carrier (user, v0.19): goes for the goal line first, avoiding defenders only when necessary —
      a defender up to 3 yards ahead and within 1.5 yards to either side makes him cut away at 45 degrees */
   let vx = dirT, vy = 0, threat = null, td = 1e9;
@@ -756,6 +782,20 @@ function sim(dt){
   G.liveT += dt; G.clock = Math.max(0, G.clock - dt*CLOCK_SCALE);
   if (input.btnUpEdge || !input.btn) G.aimArmed = true;   // the hike press has been let go: the button now throws
   if (G.ctl && G.ctl.pending && input.dirEdge) G.ctl.pending = false;   // first input after the change: you take over
+  /* dive (user, v0.24): on defense the button makes the defender you control dive in his running direction (8-way).
+     He covers 1.5 yards in 0.3 s, then stays on the ground 0.8 s. No direction held = no running direction = no dive. */
+  if (isHuman(G.def) && input.btnEdge){
+    const me = humanDefender();
+    if (me && !me.dive && !(me.downT > 0)){
+      const h = held(), vx = h.right-h.left, vy = h.down-h.up, n = Math.hypot(vx,vy);
+      if (n){ me.dive = {t:0, vx:vx/n*5, vy:vy/n*5}; if (vx) me.facing = Math.sign(vx); }
+    }
+  }
+  for (const p of G.all){
+    if (p.dive){ p.x += p.dive.vx*dt; p.y += p.dive.vy*dt; p.vx = p.dive.vx; p.vy = p.dive.vy; p.dive.t += dt;
+      if (p.dive.t >= 0.3){ p.dive = null; p.downT = 0.8; p.vx = p.vy = 0; } }
+    else if (p.downT > 0){ p.downT -= dt; p.vx = p.vy = 0; }
+  }
   for (const p of G.all){ if (p.slowT > 0) p.slowT -= dt; for (const [k,v] of p.imm){ if (v - dt <= 0) p.imm.delete(k); else p.imm.set(k, v - dt); } }
   if (G.mode === 'pass') passStep(dt);
   else if (G.mode === 'air'){ airStep(dt); if (G.phase !== 'live') return; }
@@ -862,7 +902,9 @@ function update(dt){
 }
 
 function controlledPlayer(){
-  if (!G || G.phase !== 'live') return null;
+  if (!G || G.phase === 'gameover') return null;
+  if (isHuman(G.def)) return (G.ctl && !G.ctl.pending && G.ctl.p.team === G.def) ? G.ctl.p : G.lb;   // ring on your linebacker from the start; moves only when you take over another defender (user, v0.24)
+  if (G.phase !== 'live') return null;
   if (G.mode === 'run') return G.ctl ? G.ctl.p : null;
   if (isHuman(G.def)) return G.lb;
   if (isHuman(G.off) && G.mode === 'pass') return G.qb;
@@ -985,6 +1027,8 @@ const POSES = {
 function poseFor(p, moving, spd){
   const b = G.ball, ph = p.anim || 0, k = clamp01(spd/3.2);
   const run = (lean) => runPose(p.back ? -ph : ph, Math.max(0.35, k), lean);
+  if (p.dive) return {lean:1.45, hip:0.42, legs:[{t:-1.0,k:0.3},{t:-0.7,k:0.2}], arms:[{u:1.55,e:0.05},{u:1.45,e:0.1}]};   // diving
+  if (p.downT > 0) return {...POSES.lying(), lying:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]};                              // down after a dive
   if (G.phase === 'dead' || G.phase === 'gameover'){
     if (p === G.downed) return {...POSES.lying(), lying:true};
     if (p === G.tdBy) return POSES.cheer(performance.now()/1000);
@@ -1097,7 +1141,7 @@ function drawPlayer(p, mark){
   const moving = p.spd > 0.15;
   p.anim += mv * 4.4;                                    // about one full stride per 1.4 yards
   // facing: the way he's moving, except defenders backpedal in coverage, facing the offense
-  let dirX = Math.abs(dx) > 1e-4 ? Math.sign(dx) : (p.facing || (p.team===0?1:-1));
+  let dirX = Math.abs(dx) > 1e-4 && !(p.downT > 0) ? Math.sign(dx) : (p.facing || (p.team===0?1:-1));
   p.back = false;
   if (G.phase === 'live' && G.mode !== 'run' && (p.role === 'DB' || p.role === 'LB') && Math.sign(dx) === G.d && Math.abs(dx) > 1e-4){ dirX = -G.d; p.back = true; }
   if (!moving && G.phase === 'presnap') dirX = p.team === G.off ? G.d : -G.d;
@@ -1133,6 +1177,12 @@ function drawBall(){
   const ang = Math.atan2((b.ty-b.sy)*SY - (4*b.h*(1-2*t))*SY*0.9, (b.tx-b.sx)*SX);   // nose follows the arc
   drawFootball(px, py - lift, ang, 7 + Math.sin(b.t*40)*0.6);
 }
+/* shrink a route preview toward its start so it stays on screen (user, v0.24: defense previews ran off screen) */
+function fitOnScreen(pts){
+  const lo = view.left + 0.5, hi = view.left + VIEW_YDS - 0.5, x0 = pts[0].x; let k = 1;
+  for (const p of pts){ const dx = p.x - x0; if (p.x < lo && dx < 0) k = Math.min(k, (lo - x0)/dx); if (p.x > hi && dx > 0) k = Math.min(k, (hi - x0)/dx); }
+  k = Math.max(0, k); return pts.map(p => ({x: x0 + (p.x-x0)*k, y: pts[0].y + (p.y-pts[0].y)*Math.max(k, 0.6)}));
+}
 // ---------- throw arrows: the direction you press (with the button held) to throw to each receiver ----------
 function drawArrowGlyph(cx, cy, dir, sz){   // dir: 'up' | 'down' | 'left' | 'right'
   const a = {up:-Math.PI/2, down:Math.PI/2, left:Math.PI, right:0}[dir];
@@ -1158,6 +1208,7 @@ function paintBadge(b){
 /* pass 0: badges of receivers on screen (drawn behind the players); pass 1: badges pinned to a screen edge,
    spread apart so two receivers off the same side never hide each other */
 function drawThrowBadges(pass){
+  if (!isHuman(G.off)) return;      // only your receivers get arrows (user, v0.24)
   const list = G.wrs.filter(w => w.throwKey).map(badgeInfo).filter(b => (pass === 0) === (b.off === 0));
   if (pass === 1) for (const side of [-1, 1]){
     const e = list.filter(b => b.off === side).sort((a,b) => a.by - b.by);
@@ -1198,7 +1249,7 @@ function draw(){
   // route previews (only your own calls)
   const pre = ['routes','guess','align','presnap'].includes(G.phase);
   if (pre && isHuman(G.off)) for (const w of G.wrs) if (w.route) drawPath(previewPath(w.route, w.x, w.y, G.d), 'rgba(255,230,90,.85)', false);
-  if (pre && isHuman(G.def)) for (const b of G.dbs) if (b.guess) drawPath(previewPath(b.guess, b.x, b.y, G.d), 'rgba(255,140,120,.85)', true);
+  if (pre && isHuman(G.def)) for (const b of G.dbs) if (b.guess) drawPath(fitOnScreen(previewPath(b.guess, b.x, b.y, G.d)), 'rgba(255,140,120,.85)', true);
   const ctl = controlledPlayer();
   let visitTarget = null;
   if (G.phase==='routes' && G.waiting && isHuman(G.off)) visitTarget = G.wrs[G.visit];
@@ -1206,9 +1257,13 @@ function draw(){
   if (G.phase !== 'gameover') drawDownBox();
   const showKeys = G.phase === 'presnap' || G.phase === 'live';
   if (showKeys) drawThrowBadges(0);
+  if (G.phase === 'live') for (const w of G.wrs){   // dashed red ring: a DB is locked onto this receiver's route (user, v0.24)
+    const db = G.dbs.find(b => b.cover === w); if (!db || db.mode !== 'mirror') continue;
+    ctx.save(); ctx.strokeStyle = '#e0413b'; ctx.lineWidth = 2.5; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.ellipse(X(w.x), Y(w.y), FIG*0.34, FIG*0.09, 0, 0, 7); ctx.stroke(); ctx.restore(); }
   for (const p of [...G.all].sort((a,b)=>a.y-b.y)){
     let mark = null;
-    if (p === ctl) mark = {c:'#ffd23f', blink: !!(G.ctl && G.ctl.p===p && G.ctl.pending)};
+    if (p === ctl) mark = {c:'#ffd23f', blink: !!(G.ctl && G.ctl.p===p && G.ctl.pending && p.team === G.off)};
     else if (p === visitTarget) mark = {c:C.white, blink:true};
     drawPlayer(p, mark);
   }
@@ -1249,7 +1304,7 @@ function showFinal(){
   $('menu').hidden = true; $('final').hidden = false;
 }
 $('start').addEventListener('click', () => {
-  goFull();
+  goFull(); audioOn();
   if (!myKit){ kpOpen(true, startGame); return; }   // a new player picks his uniforms first, like baseball
   startGame();
 });
@@ -1258,7 +1313,7 @@ $('hback').addEventListener('click', () => { $('how').hidden = true; $('title').
 $('menu').addEventListener('click', () => { if (!G || G.phase==='gameover') return; G.paused = true; btnUp(); setPad(null); $('quit').hidden = false; });
 $('qno').addEventListener('click', () => { $('quit').hidden = true; if (G) G.paused = false; $('menu').blur(); });
 $('qyes').addEventListener('click', toTitle);
-$('again').addEventListener('click', startGame);
+$('again').addEventListener('click', () => { audioOn(); startGame(); });
 $('fmenu').addEventListener('click', toTitle);
 
 // ---------- loop ----------
