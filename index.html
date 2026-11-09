@@ -127,7 +127,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.42</small>
+    <small id="ver">Version 0.46</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -554,7 +554,7 @@ function routeFromDir(dir, d){
 }
 function setAlign(){
   const d = G.d, L = G.los;
-  G.qb.tx = L-d*4; G.qb.ty = MID;
+  G.qb.tx = L-d*2; G.qb.ty = MID;                      // QB lines up 2 yards behind the line (user, v0.45)
   G.ols.forEach((o,i) => { o.tx = L-d*0.5; o.ty = MID+(i-1)*0.6; });
   G.wrs.forEach(w => { w.tx = L-d*0.5; w.ty = w.alignY; });
   G.dls.forEach((o,i) => { o.tx = L+d*0.8; o.ty = MID+(i-1)*0.6; });
@@ -630,7 +630,7 @@ function snap(){
   const d = G.d;
   G.phase = 'live'; G.mode = 'pass'; G.tapNoDir = false; G.liveT = 0; G.aimArmed = false; G.ctl = null; G.ballTeam = G.off; G.stats.plays++;
   G.cq = {think:0, scramble:false};
-  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; }
+  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; p.turned = false; }
   G.grapple = null;
   for (const w of G.wrs){ w.wp = routeWaypoints(w.route, w.x, w.y, d); w.wpi = 0; w.stopped = false; }
   for (const b of G.dbs){
@@ -693,7 +693,7 @@ function cpuQB(dt){
     st.think -= dt;
     if (st.think <= 0){ st.think = 0.2; const o = openWR(3); if (o && o.sep >= 1.7) return throwTo(o.w); }   // someone came open while he was running
     scrambleStep(q, dt); return; }
-  moveToward(q, {x:G.los - d*7, y:q.y}, SPD.qb, dt);   // drops back 3 yards from where he lined up, then sets (user, v0.16)
+  moveToward(q, {x:G.los - d*5, y:q.y}, SPD.qb, dt);   // drops back 3 yards from where he lined up (2 back), then sets (user, v0.16/v0.45)
   const pressured = isPressured(q);
   st.think -= dt; if (st.think > 0 && !pressured) return; st.think = 0.2;
   /* first 1.5 seconds: someone open 5+ yards downfield, deepest first. After that, or once pressured, anyone open 3+ yards. */
@@ -1253,7 +1253,8 @@ function drawAthlete(p, x, y, dirX, pose, T){
   ctx.save(); ctx.translate(x, y);
   if (pose.lying){   // going down: a 0.4 s fall from upright to prone (user, v0.38)
     const f = pose.fall == null ? 1 : pose.fall, e = f*f*(3-2*f);
-    ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(-dirX*Math.PI/2*0.96*e); }
+    const fwd = p === G.downed ? 1 : -1;   // ball carriers fall forward, face first, the way HE was facing/running (user, v0.46)
+    ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(fwd*dirX*Math.PI/2*0.96*e); }
   const spin = p.spinT > 0 ? Math.cos((1 - p.spinT/0.4) * 2*Math.PI) : 1;   // spin move: one full turn (user, v0.29)
   ctx.scale(dirX * (Math.abs(spin) < 0.12 ? 0.12*Math.sign(spin||1) : spin), 1);
   const L1 = 0.25*S, L2 = 0.25*S, hip = {x:0, y:-pose.hip*S};
@@ -1332,7 +1333,13 @@ function drawPlayer(p, mark){
   // facing: the way he's moving, except defenders backpedal in coverage, facing the offense
   let dirX = Math.abs(dx) > 1e-4 && !(p.downT > 0) ? Math.sign(dx) : (p.facing || (p.team===0?1:-1));
   p.back = false;
-  if (G.phase === 'live' && G.mode !== 'run' && (p.role === 'DB' || p.role === 'LB') && Math.sign(dx) === G.d && Math.abs(dx) > 1e-4){ dirX = -G.d; p.back = true; }
+  /* DBs backpedal (facing the offense) until their receiver gets to them, then turn and run the way they're going.
+     The linebacker always faces the way he's running. (user, v0.43) */
+  if (p.role === 'DB' && G.phase === 'live' && !p.turned){
+    const w = p.cover;
+    if (G.mode === 'run' || !w || (w.x - p.x)*G.d >= -0.5) p.turned = true;   // his receiver has reached him
+    else if (Math.sign(dx) === G.d && Math.abs(dx) > 1e-4){ dirX = -G.d; p.back = true; }
+  }
   if (!moving && G.phase === 'presnap') dirX = p.team === G.off ? G.d : -G.d;
   p.facing = dirX;
   const pose = poseFor(p, moving, p.spd);
