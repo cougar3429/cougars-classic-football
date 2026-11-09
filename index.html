@@ -59,6 +59,7 @@ body { margin: 0; background: #12301d; color: var(--cream); font-family: var(--f
 .seg { display: flex; border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; box-shadow: 0 3px 0 var(--ink); }
 .seg button { border: none; background: var(--cream); color: var(--ink); font: 700 14px var(--font-body); padding: 8px 14px; min-height: 40px; cursor: pointer; }
 .seg button + button { border-left: 2px solid var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--gold); }
 .big-btn { font-family: var(--font-display); font-size: 20px; padding: 10px 28px; min-height: 48px; border-radius: 12px; border: 3px solid var(--ink); background: var(--red); color: #fff; box-shadow: 0 4px 0 var(--ink); cursor: pointer; }
 .big-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
 .big-btn:disabled { opacity: 0.45; cursor: default; }
@@ -123,11 +124,12 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     <p>7 on 7 against the computer. You drive to the right. No kicks: a touchdown is worth 7.</p>
     <div class="trow">
       <button type="button" class="selbtn colbtn" id="colb1" aria-label="Team colors"><span class="swp"><i></i><i></i></span>COLORS</button>
+      <div class="row"><label>Opening</label><div class="seg" role="group" aria-label="Kick or receive"><button type="button" id="optkick" aria-pressed="false">KICK</button><button type="button" id="optrecv" aria-pressed="true">RECEIVE</button></div></div>
       <div class="row"><label>Controls</label><div class="seg" role="group" aria-label="Move the controls"><button type="button" id="ctlmove">MOVE</button><button type="button" id="ctlreset">RESET</button></div></div>
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.52</small>
+    <small id="ver">Version 0.57</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -270,7 +272,10 @@ const held = () => ({up:input.key.up||input.pad.up, down:input.key.down||input.p
   left:input.key.left||input.pad.left, right:input.key.right||input.pad.right});
 const dpad = $('dpad'), btnEl = $('btn'); let padPointer = null;
 const DNAME = {u:'up', d:'down', l:'left', r:'right'};
-function btnDown(){ if (!input.btn){ input.btn = true; input.btnEdge = true; btnEl.classList.add('on'); } }
+function btnDown(){ if (!input.btn){ input.btn = true; input.btnEdge = true; btnEl.classList.add('on');
+  /* a direction already held when the button is pressed counts as the throw direction (up/down first, then forward) (v0.56 fix) */
+  const h = held(), fwd = G && G.d < 0 ? 'left' : 'right'; const td = h.up ? 'up' : h.down ? 'down' : h[fwd] ? fwd : null;
+  if (td) input.throwEdge = td; } }
 function btnUp(){ if (input.btn){ input.btn = false; input.btnUpEdge = true; } btnEl.classList.remove('on'); }
 function padFromEvent(e){
   const r = dpad.getBoundingClientRect(), cx = r.left + r.width/2, cy = r.top + r.height/2, dx = e.clientX - cx, dy = e.clientY - cy;
@@ -339,6 +344,10 @@ $('ctlres2').addEventListener('click', ctlReset);
 let AC = null, FX = null;
 const VOL = {fx:0.8, voice:0.8};
 try { const v = JSON.parse(localStorage.getItem('ccf-vol') || 'null'); if (v && isFinite(v.fx) && isFinite(v.voice)) { VOL.fx = v.fx; VOL.voice = v.voice; } } catch (e) {}
+/* kick or receive, picked on the start menu and kept on this phone (user, v0.57). RECEIVE = you get the ball first. */
+const OPEN = {kick:false};
+try { OPEN.kick = localStorage.getItem('ccf-open') === 'kick'; } catch (e) {}
+function saveOpen(){ try { localStorage.setItem('ccf-open', OPEN.kick ? 'kick' : 'receive'); } catch (e) {} }
 function saveVol(){ try { localStorage.setItem('ccf-vol', JSON.stringify(VOL)); } catch (e) {} }
 function audioOn(){ try { if (!AC){ AC = new (window.AudioContext || window.webkitAudioContext)(); FX = AC.createGain(); FX.connect(AC.destination); }
   FX.gain.value = VOL.fx; if (AC.state === 'suspended') AC.resume(); } catch (e) {} }
@@ -477,7 +486,7 @@ function banner(text, sub, dur){ G.banner = {text, sub:sub||'', t:0, dur:dur||1.
 
 function newGame(){
   const hk = curKit().home; Object.assign(TEAM[0], teamLook(hk)); Object.assign(TEAM[1], teamLook({p:randCol(hk.p), s:randCol(null)}));
-  G = {score:[0,0], quarter:1, clock:QUARTER_SEC, poss: rnd()<.5?0:1, phase:'formation', t:0,
+  G = {score:[0,0], quarter:1, clock:QUARTER_SEC, poss: DEMO ? (rnd()<.5?0:1) : (OPEN.kick ? 1 : 0), phase:'formation', t:0,
        camX:60, banner:null, stats:{plays:0,int:0,inc:0,sack:0,td:[0,0],comp:0,pick6:0,qbrun:0,blocks:0,safety:0}};
   G.firstPoss = G.poss; G.los = own20(G.poss); setFirstDown();
   startHuddle(); G.camX = G.los; banner(TEAM[G.poss].name+' BALL FIRST');
@@ -558,7 +567,7 @@ function setAlign(){
   G.ols.forEach((o,i) => { o.tx = L-d*0.5; o.ty = MID+(i-1)*0.6; });
   G.wrs.forEach(w => { w.tx = L-d*0.5; w.ty = w.alignY; });
   G.dls.forEach((o,i) => { o.tx = L+d*0.8; o.ty = MID+(i-1)*0.6; });
-  G.dbs.forEach((b,i) => { b.tx = L+d*2.6; b.ty = G.wrs[i].alignY; });
+  G.dbs.forEach((b,i) => { b.tx = L+d*2; b.ty = G.wrs[i].alignY; });   // DBs line up 2 yards off the line (user, v0.54)
   G.lb.tx = L+d*3; G.lb.ty = MID;                      // 3 yards off the line (user, v0.42)
 }
 const slowMul = p => (p.slowT > 0 ? 0.5 : 1) * (p.boost ? 1.2 : 1);   // a block halves speed for 1 s; catch-up boost +20% (user, v0.31)
@@ -788,11 +797,13 @@ function followRoute(w, dt){
 }
 function cover(db, dt){
   const w = db.cover, d = G.d;
-  if (db.mode === 'mirror') moveToward(db, {x:w.x+d*0.6, y:w.y+(w.y<MID?1:-1)*0.15}, SPD.mirror, dt);
+  /* once a DB gets to his receiver he stays between the QB and him, 0.5 yards from the receiver (user, v0.56) */
+  const inside = (px, py) => { const q = G.qb, k = Math.hypot(q.x-px, q.y-py) || 1; return {x:px+(q.x-px)/k*0.5, y:py+(q.y-py)/k*0.5}; };
+  if (db.mode === 'mirror') moveToward(db, inside(w.x, w.y), SPD.mirror, dt);
   else if (db.mode === 'wrong'){
     const wp = db.wp[db.wpi]; if (wp){ if (moveToward(db, wp, SPD.db, dt)) db.wpi++; } else { db.vx = db.vy = 0; }
-    if (dist(db,w) > 5) db.mode = 'chase';   // once his man is 5 yards away he gives up the route and chases
-  } else moveToward(db, {x:w.x+w.vx*0.2, y:w.y+w.vy*0.2}, SPD.dbChase, dt);
+    if (dist(db,w) > 4 || G.liveT >= 2) db.mode = 'chase';   // gives up the route and chases once his man is 4 yards away or 2 seconds have passed since the snap (user, v0.55)
+  } else moveToward(db, inside(w.x+w.vx*0.2, w.y+w.vy*0.2), SPD.dbChase, dt);
 }
 /* computer linebacker (user, v0.17): on 30% of plays he attacks the QB while the QB has the ball, then the ball once it's thrown.
    Otherwise he runs after a wide-open receiver (no other defender within 5 yards of him); if there isn't one,
@@ -1485,6 +1496,8 @@ function draw(){
     const fd = G.los + G.d*G.toGo;
     drawPin(G.los, C.white);
     if (fd > 10 && fd < 110) drawPin(fd, C.pinBlue);
+    if (fd > 10 && fd < 110){   // TV-style yellow first-down line across the field, under the players (user, v0.53)
+      ctx.fillStyle = 'rgba(255,214,0,0.85)'; ctx.fillRect(X(fd)-2.5, FIELD_TOP, 5, FIELD_PX); }
   }
   // route previews (only your own calls)
   const pre = ['routes','guess','align','presnap'].includes(G.phase);
@@ -1545,6 +1558,10 @@ function showFinal(){
   $('fsc').textContent = `${TEAM[0].name} ${a}  –  ${b} ${TEAM[1].name}`;
   $('menu').hidden = true; $('final').hidden = false;
 }
+function showOpen(){ $('optkick').setAttribute('aria-pressed', OPEN.kick); $('optrecv').setAttribute('aria-pressed', !OPEN.kick); }
+$('optkick').addEventListener('click', () => { OPEN.kick = true; saveOpen(); showOpen(); });
+$('optrecv').addEventListener('click', () => { OPEN.kick = false; saveOpen(); showOpen(); });
+showOpen();
 $('start').addEventListener('click', () => {
   goFull(); audioOn();
   if (!myKit){ kpOpen(true, startGame); return; }   // a new player picks his uniforms first, like baseball
