@@ -127,7 +127,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.25</small>
+    <small id="ver">Version 0.26</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -956,7 +956,7 @@ function update(dt){
       break;
     case 'presnap':
       G.t += dt;
-      if (isHuman(G.off) ? input.btnEdge : G.t > 0.9){ if (isHuman(G.off)) sayHut(); snap(); }
+      if (isHuman(G.off) ? input.btnEdge : G.t > 0.9){ sayHut(); snap(); }   // "Hut! Hut!" on every snap (user, v0.26)
       break;
     case 'live': sim(dt); break;
     case 'dead': G.t += dt; if (G.t > 1.8) nextPlay(); break;
