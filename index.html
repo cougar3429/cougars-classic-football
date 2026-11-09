@@ -127,7 +127,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.26</small>
+    <small id="ver">Version 0.27</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -422,7 +422,9 @@ const QUARTER_SEC = 15*60, CLOCK_SCALE = 5, BETWEEN_PLAYS = 40;
 /* running speeds were cut in half (user, Nov 8, version 0.3) */
 /* every speed slowed another 20% (user, v0.25) */
 const SLOW = 0.8;
-const SPD = {walk:5*SLOW, qb:3.1*SLOW, wr:3.5*SLOW, carrier:3.15*SLOW, ol:2.5*SLOW, db:3.5*SLOW, dbChase:3.5*SLOW, mirror:3.5*SLOW, lb:3.25*SLOW, dl:1.8*SLOW, ball:17*SLOW, dive:5*SLOW};
+/* one running speed for every player (user, v0.27: "I never said to make players different speeds") */
+const RUN = 3.5*SLOW;
+const SPD = {walk:5*SLOW, qb:RUN, wr:RUN, carrier:RUN, ol:RUN, db:RUN, dbChase:RUN, mirror:RUN, lb:RUN, dl:RUN, ball:17*SLOW, dive:5*SLOW};
 const ROLE_SPD = {DB:SPD.dbChase, LB:SPD.lb, DL:SPD.dl};
 const ROUTES = ['up','down','streak','hook'];
 const FORMS = [{n:'TRIPS LEFT',L:3},{n:'2 LEFT 1 RIGHT',L:2},{n:'2 RIGHT 1 LEFT',L:1},{n:'TRIPS RIGHT',L:0}];
@@ -585,7 +587,6 @@ function snap(){
       b.wp = routeWaypoints(b.guess, w.x, w.y, d).map(p => ({x:p.x+(b.x-w.x), y:p.y+(b.y-w.y)})); }
   }
   for (const dl of G.dls){ dl.beatsFirst = rnd() < 0.1; dl.slip = null; }   // 10% of the time a defensive lineman avoids the initial block (user, v0.18)
-  if (G.dbs.some(b => b.mode === 'mirror')) playLock();   // any DB locked onto his receiver's route: metallic lock sound (user, v0.24)
   G.lb.plan = rnd() < 0.3 ? 'blitz' : 'hold';          // computer linebacker blitzes on 30% of plays, from the snap (user, v0.16)
   G.ball = {state:'held', carrier:G.qb};
 }
@@ -925,8 +926,12 @@ function nextPlay(){
   startHuddle();
 }
 
-/* every receiver's route guessed: electric buzz right after the last call is made (user, v0.25) */
-function allGuessedCheck(){ if (G.dbs.every(b => b.cover && b.guess === b.cover.route)) sfx('buzz'); }
+/* right after the last route / guess is made (user, v0.27): electric buzz if every route was guessed,
+   otherwise the metallic ka-chunk if at least one was */
+function allGuessedCheck(){
+  const hits = G.dbs.filter(b => b.cover && b.guess === b.cover.route).length;
+  if (hits === G.dbs.length) sfx('buzz'); else if (hits > 0) sfx('lock');
+}
 // ---------- main update ----------
 function update(dt){
   if (!G || G.paused) { input.btnEdge = input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null; return; }
