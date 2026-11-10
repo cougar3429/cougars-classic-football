@@ -130,7 +130,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.68</small>
+    <small id="ver">Version 0.70</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -752,7 +752,7 @@ function snap(){
   G.phase = 'live'; G.mode = 'pass'; G.tapNoDir = false; G.liveT = 0; G.aimArmed = false; G.ctl = null; G.ballTeam = G.off; G.stats.plays++;
   G.cq = {think:0, scramble:false};
   G.fumText = null; musicStop(); chantTick(false);
-  for (const p of G.all){ p.fallT = 0; p.pickT = 0; p.hitBefore = false; p.proneUp = false; p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; p.turned = false; }
+  for (const p of G.all){ p.fallT = 0; p.pickT = 0; p.hitBefore = false; p.proneUp = false; p.dvRange = false; p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; p.turned = false; }
   G.grapple = null;
   for (const w of G.wrs){ w.wp = routeWaypoints(w.route, w.x, w.y, d); w.wpi = 0; w.stopped = false; }
   for (const b of G.dbs){
@@ -783,8 +783,8 @@ function diveDir(me){
   const c = G.ball && G.ball.state === 'held' ? G.ball.carrier : null, spd = SPD.dive*(me.boost ? 1.2 : 1);
   if (c && c.team !== me.team && dist(me,c) <= spd*0.3 + TACKLE){
     const t = Math.min(0.3, dist(me,c)/spd); vx = c.x + c.vx*t - me.x; vy = c.y + c.vy*t - me.y; }
-  /* a ball carrier with no direction held dives the way he's running (v0.67) */
-  if (!vx && !vy && me === c){ if (Math.hypot(me.vx||0, me.vy||0) > 0.1){ vx = me.vx; vy = me.vy; } else vx = me.facing || dirOf(me.team); }
+  /* no direction held: he dives straight ahead, the way he's facing (user, v0.69). Any player can dive any time. */
+  if (!vx && !vy) vx = me.facing || dirOf(me.team);
   const n = Math.hypot(vx,vy);
   return n ? {vx:vx/n, vy:vy/n} : null;
 }
@@ -792,14 +792,49 @@ function tryDive(who){
   const me = who || humanDefender(), v = diveDir(me);
   if (v){ me.proneUp = false; me.dive = {t:0, vx:v.vx*SPD.dive, vy:v.vy*SPD.dive}; me.touchedInAir = false; if (v.vx) me.facing = Math.sign(v.vx); }
 }
-/* the player the button would dive with right now, if any (for the button's label) */
+/* the player the button would dive with right now, if any (the button's label, and what a press does) */
 function diverNow(){
   if (G.phase === 'live'){
-    if (isHuman(G.def)) return G.ctl && G.ctl.p.team === G.def ? G.ctl.p : (G.ctl ? null : G.lb);
-    if (isHuman(G.off) && G.mode === 'run' && G.ctl && G.ball.state === 'held' && G.ctl.p === G.ball.carrier) return G.ctl.p;
+    if (isHuman(G.def)) return G.ctl ? (G.ctl.p.team === G.def ? G.ctl.p : null) : G.lb;
+    if (isHuman(G.off) && (G.mode === 'run' || G.mode === 'loose') && G.ctl) return G.ctl.p;
     return null; }
-  if (G.phase === 'dead' && isHuman(G.def) && G.t < 1 && !hornAllowed()) return humanDefender();
+  if (G.phase === 'dead' && isHuman(G.def) && G.t < 1 && !hornAllowed()) return humanDefender();   // late dives (user, v0.47)
   return null;
+}
+/* computer-run defenders dive at the ball carrier when he's within dive range (user, v0.69) — only once the runner has
+   gotten past them and they're chasing, and never linemen (v0.70): a 40% chance each time
+   he comes into range, and always if the dive could stop a touchdown or first down, meaning no other defender
+   could get to him before he reaches that line */
+function cpuDives(){
+  const b = G.ball; if (b.state !== 'held') return;
+  const c = b.carrier, T = c.team, me = controlledPlayer();
+  if (G.dvCarrier !== c){ G.dvCarrier = c; for (const p of G.all) p.dvRange = false; }
+  for (const p of G.all){
+    if (p.team === T || (p === me && isHuman(p.team))) continue;
+    if (p.role === 'OL' || p.role === 'DL') continue;                 // computer linemen never dive (user, v0.70)
+    if ((c.x - p.x)*dirOf(T) <= 0){ p.dvRange = false; continue; }    // only once the runner is past him and he's chasing (user, v0.70)
+    const spd = SPD.dive*(p.boost ? 1.2 : 1);
+    if (dist(p,c) > spd*0.3 + TACKLE || p.dive || p.downT > 0 || p.fallT > 0 || p.blockedT > 0 || p.grappled){ if (dist(p,c) > spd*0.3 + TACKLE) p.dvRange = false; continue; }
+    let go = false;
+    if (!p.dvRange){ p.dvRange = true; go = rnd() < 0.4; }
+    if (!go && onlyChance(p, c)) go = true;
+    if (!go) continue;
+    const t = Math.min(0.3, dist(p,c)/spd), vx = c.x + c.vx*t - p.x, vy = c.y + c.vy*t - p.y, n = Math.hypot(vx,vy) || 1;
+    p.proneUp = false; p.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; p.touchedInAir = false; if (vx) p.facing = Math.sign(vx);
+  }
+}
+function onlyChance(me, c){   // would the runner reach the goal line or the first-down line before any other defender could get to him?
+  const T = c.team, dirT = dirOf(T), v = roleSpd(c)*slowMul(c) || 1;
+  const lines = [goalX(T)]; if (T === G.off) lines.push(G.los + G.d*G.toGo);
+  const others = G.all.filter(o => o.team !== T && o !== me && !(o.downT > 0) && !(o.fallT > 0) && !o.dive);
+  for (const L of lines){
+    const dl = (L - c.x)*dirT; if (dl <= 0) continue;
+    let stopped = false;
+    for (let k = 1; k <= 12 && !stopped; k++){ const sd = dl*k/12, P = {x:c.x + dirT*sd, y:c.y}, tRun = sd/v;
+      if (others.some(o => dist(o,P) - TACKLE <= roleSpd(o)*slowMul(o)*tRun)) stopped = true; }
+    if (!stopped) return true;
+  }
+  return false;
 }
 function stepDives(dt){
   for (const p of G.all){
@@ -1097,11 +1132,9 @@ function sim(dt){
     if (G.ctl && G.ctl.pending && (input.dirEdge || input.btnEdge || h.up || h.down || h.left || h.right)) G.ctl.pending = false; }
   /* dive (user, v0.24): on defense the button makes the defender you control dive in his running direction (8-way).
      He covers 1.5 yards in 0.3 s, then stays on the ground 0.8 s. No direction held = no running direction = no dive. */
-  if (input.btnEdge){
-    if (isHuman(G.def)) tryDive();
-    else if (isHuman(G.off) && G.mode === 'run' && G.ctl && !G.ctl.pending && G.ball.state === 'held' && G.ctl.p === G.ball.carrier) tryDive(G.ctl.p);   // your ball carrier can dive (user, v0.49)
-  }
+  if (input.btnEdge){ const dv = diverNow(); if (dv) tryDive(dv); }   // any player you control can dive any time (user, v0.69)
   stepDives(dt);
+  cpuDives();
   /* catch-up (user, v0.31): anyone the ball carrier has gotten past runs 20% faster once he's been behind for 2 seconds,
      until he's caught back up with the runner */
   if (G.ball.state === 'held'){ const c = G.ball.carrier, dirT = dirOf(G.ballTeam);
@@ -1328,7 +1361,7 @@ function update(dt){
     case 'dead':
       G.t += dt;
       if (hornAllowed()){ if (input.btnEdge) hornOn(); if (input.btnUpEdge || !input.btn) hornOff(); }   // the air horn (user, v0.39)
-      else if (isHuman(G.def) && G.t < 1 && input.btnEdge) tryDive();   // late dives, just for fun: up to 1 s after the whistle (user, v0.47)
+      else if (input.btnEdge){ const dv = diverNow(); if (dv) tryDive(dv); }   // late dives, just for fun: up to 1 s after the whistle (user, v0.47)
       stepDives(dt);
       if (G.t > (G.tdBy ? 4 : 1.8)){ hornOff(); nextPlay(); }   // 4 s to watch a touchdown celebration (user, v0.39)
       break;
