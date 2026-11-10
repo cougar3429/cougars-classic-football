@@ -130,7 +130,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.75</small>
+    <small id="ver">Version 0.85</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -590,7 +590,7 @@ const rnd = Math.random;
    only FW wide: like the original cartridge, the whole width fits the screen height while about 22 yards scroll left to right. */
 let G = null;
 const PR = 0.28;          // player radius (draw)
-const TACKLE = 0.55, BLOCK_R = 0.55, REACH = 0.6, VIC = 0.6, CATCH_H = 0.8;
+const TACKLE = 0.55, BLOCK_R = 0.5,   /* block contact distance 0.5 yd (user, v0.77; was 0.55) */ REACH = 0.6, VIC = 0.6, CATCH_H = 0.8;
 function mk(role, team, x, y){ return {role, team, x, y, vx:0, vy:0, face: team===0?0:Math.PI, slowT:0, imm:new Map()}; }
 function arcPos(c, side, i){ const a = (-75 + i*30)*Math.PI/180, r = 1.5;
   return {x: c.x + side*Math.cos(a)*r, y: c.y + Math.sin(a)*r}; }
@@ -687,7 +687,8 @@ function setAlign(){
   G.lb.tx = L+d*2; G.lb.ty = MID;                      // 2 yards off the line, both teams (user, v0.60)
 }
 const slowMul = p => (p.slowT > 0 ? 0.5 : 1) * (p.pickT > 0 ? 0.5 : 1) * (p.boost ? 1.2 : 1)
-  * (p.role === 'DB' && p.mode === 'blitz' && G.phase === 'live' && G.liveT < 1.5 ? 1.3 : 1);   // a blitzing DB is 30% faster for the first 1.5 s of the play (user, v0.65)
+  * (p.role === 'DB' && p.mode === 'blitz' && G.phase === 'live' && G.liveT < 1.5 ? 1.3 : 1)
+  * (p.thru ? 0.75 : 1);   // running through two players locked in a block: 25% slower (user, v0.85)   // a blitzing DB is 30% faster for the first 1.5 s of the play (user, v0.65)
    // picking up a fumble: half speed for 0.3 s (user, v0.60)   // a block halves speed for 1 s; catch-up boost +20% (user, v0.31)
 function moveToward(p, t, spd, dt){
   if (p.dive || p.downT > 0 || p.fallT > 0 || p.grappled) return false;      // diving, falling, or on the ground
@@ -725,8 +726,10 @@ function routeWaypoints(route, sx, sy, d){
   switch(route){
     case 'streak': return [{x:sx+d*130, y:sy}];
     case 'hook':   return [{x:sx+d*6, y:sy}, {x:sx+d*4.5, y:sy+(sy<MID?1:-1)*0.3}];
-    case 'up':     return [{x:sx+d*6, y:sy}, {x:sx+d*6.3, y:EDGE_TOP}];     // 6 yards, then the cut (user, v0.21); stops at the sideline
-    case 'down':   return [{x:sx+d*6, y:sy}, {x:sx+d*6.3, y:EDGE_BOT}];
+    /* 6 yards, then the cut (user, v0.21) across to the sideline. An OUT (cut toward his own sideline) becomes an
+       OUT AND UP (user, v0.84): at the sideline he turns upfield and runs a streak the rest of the play. An IN still stops there. */
+    case 'up':     return [{x:sx+d*6, y:sy}, {x:sx+d*6.3, y:EDGE_TOP}, ...(sy < MID ? [{x:sx+d*136.3, y:EDGE_TOP}] : [])];
+    case 'down':   return [{x:sx+d*6, y:sy}, {x:sx+d*6.3, y:EDGE_BOT}, ...(sy > MID ? [{x:sx+d*136.3, y:EDGE_BOT}] : [])];
   }
   return [];
 }
@@ -734,8 +737,8 @@ function previewPath(route, x, y, d){
   switch(route){
     case 'streak': return [{x,y},{x:x+d*4.5,y}];
     case 'hook':   return [{x,y},{x:x+d*3.5,y},{x:x+d*2.6,y:y+(y<MID?1:-1)*0.5}];
-    case 'up':     return [{x,y},{x:x+d*3,y},{x:x+d*3.2,y:Math.max(EDGE_TOP, y-1.6)}];
-    case 'down':   return [{x,y},{x:x+d*3,y},{x:x+d*3.2,y:Math.min(EDGE_BOT, y+1.6)}];
+    case 'up':     { const e = {x:x+d*3.2, y:Math.max(EDGE_TOP, y-1.6)}; return [{x,y},{x:x+d*3,y},e, ...(y < MID ? [{x:e.x+d*1.6, y:e.y}] : [])]; }   // out and up (v0.84)
+    case 'down':   { const e = {x:x+d*3.2, y:Math.min(EDGE_BOT, y+1.6)}; return [{x,y},{x:x+d*3,y},e, ...(y > MID ? [{x:e.x+d*1.6, y:e.y}] : [])]; }
   }
   return [];
 }
@@ -768,9 +771,10 @@ function snap(){
     else { b.mode = 'wrong'; b.wpi = 0;
       b.wp = routeWaypoints(b.guess, w.x, w.y, d).map(p => ({x:p.x+(b.x-w.x), y:p.y+(b.y-w.y)})); }
   }
+  for (const o of G.ols) o.holdX = o.x;   // where each offensive lineman holds (v0.79)
   for (const dl of G.dls){ dl.beatsFirst = rnd() < 0.1; dl.slip = null;
-    /* 25% of the time a defensive lineman rushes at a 45° angle, up or down, for his first 3 yards (user, v0.73) */
-    dl.angle = rnd() < 0.25 ? (rnd() < 0.5 ? -1 : 1) : 0; dl.start = {x:dl.x, y:dl.y}; }   // 10% of the time a defensive lineman avoids the initial block (user, v0.18)
+    /* 33% of the time (user, v0.78; was 25%) a defensive lineman rushes at a 45° angle, up or down, for his first 3 yards (user, v0.73) */
+    dl.angle = rnd() < 0.33 ? (rnd() < 0.5 ? -1 : 1) : 0; dl.start = {x:dl.x, y:dl.y}; }   // 10% of the time a defensive lineman avoids the initial block (user, v0.18)
   G.lb.plan = rnd() < 0.3 ? 'blitz' : 'hold';          // computer linebacker blitzes on 30% of plays, from the snap (user, v0.16)
   /* shotgun snap from the center (user, v0.63): the ball flies from the line to the QB at passing speed; he has it when it arrives */
   G.ball = {state:'snap', x:G.los, y:MID}; G.ball.d0 = Math.max(0.1, dist(G.ball, G.qb));
@@ -905,18 +909,31 @@ function cpuQB(dt){
     st.think -= dt;
     if (st.think <= 0){ st.think = 0.2; const o = openWR(3); if (o && o.sep >= 1.7) return throwTo(o.w); }   // someone came open while he was running
     scrambleStep(q, dt); return; }
-  moveToward(q, {x:G.los - d*5, y:q.y}, SPD.qb, dt);   // drops back 3 yards from where he lined up (2 back), then sets (user, v0.16/v0.45)
+  moveToward(q, pocketSpot(q), SPD.qb, dt);   // drops back 3 yards (user, v0.16/v0.45), then moves away from pressure (user, v0.85)
   const pressured = isPressured(q);
   st.think -= dt; if (st.think > 0 && !pressured) return; st.think = 0.2;
-  /* first 1.5 seconds: someone open 5+ yards downfield, deepest first. After that, or once pressured, anyone open 3+ yards. */
-  const goal = (pressured || G.liveT > 1.5) ? 3 : 5;   // 5+ yards for the first 1.5 s (user, v0.23)
-  const best = openWR(goal);
-  if (best && best.sep > 1.7) return throwTo(best.w);
-  if (pressured){                               // nobody open and he's pressured: throw to anyone open 3+ yards out, or run
-    const any = openWR(3);
-    if (any && any.sep >= 1.2) throwTo(any.w);
-    else st.scramble = true;                    // nobody open: he runs it
-  }
+  /* (user, v0.83) he lets the play develop. If the furthest open receiver is already past the first-down line
+     (or the goal line), he throws to him right away. Otherwise he waits while he isn't pressured; once he's
+     pressured he throws to the furthest open receiver, and if nobody is open he runs it. */
+  const best = openWR(3), open = best && best.sep > 1.7;
+  const toGain = Math.min(G.toGo, (goalX(G.off) - G.los)*d);
+  if (open && best.depth >= toGain - 0.01) return throwTo(best.w);
+  if (!pressured) return;
+  if (open) return throwTo(best.w);
+  if (best && best.sep >= 1.2) throwTo(best.w);   // nobody clearly open: the best-separated man 3+ yards out (as before)
+  else st.scramble = true;                        // nobody open: he runs it
+}
+/* the computer QB in the pocket (user, v0.85): with nobody near, he settles 5 yards behind the line. When unblocked
+   defenders get within 3 yards he moves away from them (the closer, the stronger), staying 2 to 9 yards behind the
+   line and inside the sidelines, while he keeps looking to throw. */
+function pocketSpot(q){
+  const d = G.d; let rx = 0, ry = 0;
+  for (const df of G.all){ if (df.team !== G.def || df.blockedT > 0 || df.downT > 0) continue;
+    const k = dist(df,q); if (k < 3 && k > 0.01){ const w = (3-k)/3; rx += (q.x-df.x)/k*w; ry += (q.y-df.y)/k*w; } }
+  if (!rx && !ry) return {x:G.los - d*5, y:q.y};
+  const n = Math.hypot(rx,ry), t = {x:q.x + rx/n*2, y:q.y + ry/n*2};
+  t.x = G.los - d*clamp((G.los - t.x)*d, 2, 9); t.y = clamp(t.y, 1.2, FW-0.6);
+  return t;
 }
 function scrambleStep(q, dt){   // run for the edge on the side with fewer rushers, then turn upfield when there's a lane
   const d = G.d, st = G.cq, rush = [G.lb, ...G.dls];
@@ -1023,9 +1040,21 @@ function passStep(dt){
   for (const w of G.wrs) followRoute(w, dt);
   for (const db of G.dbs) cover(db, dt);
   for (const dl of G.dls) dlRush(dl, q, dt);                 // defensive linemen attack the ball carrier (user)
-  G.ols.forEach((o,i) => {                                               // offensive linemen step in front of them
-    const dl = G.dls[i], k = dist(dl,q) || 1;
-    moveToward(o, {x:dl.x+(q.x-dl.x)/k*0.45, y:dl.y+(q.y-dl.y)/k*0.45}, SPD.ol, dt);
+  /* offensive linemen (user, v0.80): each one always tries to stay between the QB and his defensive lineman, on the
+     line from the QB to the DL. He never steps toward the DL; he keeps his distance from the QB and slides along that
+     line as the DL moves, so the DL's rush decides when the block starts. If the DL gets closer to the QB than he is,
+     he gives ground to stay in front of him. */
+  /* (user, v0.85) linemen always look to block somebody: the biggest threats are the unblocked defenders closest to
+     the QB (within 7 yards). Each threat, closest first, gets the nearest free lineman; a lineman already in a block
+     stays with his man; any lineman left over helps on the closest threat. */
+  const threats = G.all.filter(o => o.team === G.def && !(o.downT > 0) && dist(o,q) < 7).sort((a,b) => dist(a,q) - dist(b,q));
+  const free = G.ols.filter(o => !(o.blockedT > 0)), assign = new Map();
+  for (const t of threats){ if (t.blockedT > 0) continue; if (!free.length) break;
+    let bi = 0; free.forEach((o,i) => { if (dist(o,t) < dist(free[bi],t)) bi = i; }); assign.set(free[bi], t); free.splice(bi,1); }
+  G.ols.forEach((o,i) => {
+    const t = o.blockedT > 0 ? (o.blockWith || G.dls[i]) : (assign.get(o) || threats[0] || G.dls[i]);
+    const k = dist(t,q) || 1, r = Math.max(0.3, Math.min(dist(o,q), k - 0.45));
+    moveToward(o, {x:q.x+(t.x-q.x)/k*r, y:q.y+(t.y-q.y)/k*r}, SPD.ol, dt);   // between the QB and his man, never stepping toward him (v0.80)
   });
   if (isHuman(G.def)) humanMove(G.lb, SPD.lb, dt); else cpuLB(dt);
   if ((q.x-G.los)*d > 0){                   // QB is past the line: no passing, everybody pursues
@@ -1132,6 +1161,15 @@ function runStep(dt){
 
 // ---------- blocks: both at half speed for 1.5 s (v0.72). The same blocker can't block that player again until 2 s after the block ends;
 //            a different blocker can block him as soon as he reaches him. ----------
+/* a block ends early once the player isn't touching any opposing player (user, v0.76). The same-blocker lockout then
+   runs 2 s from that moment, as it would after a full-length block. */
+function endSeparatedBlocks(){
+  for (const p of G.all){
+    if (!(p.blockedT > 0) || G.all.some(o => o.team !== p.team && dist(o,p) <= BLOCK_R)) continue;
+    const q = p.blockWith; p.blockedT = 0; p.slowT = 0;
+    if (q){ if (p.imm && p.imm.has(q)) p.imm.set(q, 2.0); if (q.imm && q.imm.has(p)) q.imm.set(p, 2.0); }
+  }
+}
 function doBlocks(){
   let blockers = [], targets = [];
   if (G.mode === 'pass'){ blockers = G.ols; targets = [G.lb, ...G.dls, ...G.dbs.filter(b => b.mode === 'blitz')]; }
@@ -1142,7 +1180,7 @@ function doBlocks(){
     if ((o.imm.get(b)||0) > 0 || dist(b,o) > BLOCK_R) continue;   // immune only to the player who just blocked him
     if (o.slip === b) continue;                                       // still in the contact he avoided
     if (o.beatsFirst){ o.beatsFirst = false; o.slip = b; o.spinT = 0.4; continue; }  // he avoids the initial block only (user, v0.20), with a spin move (user, v0.29)
-    o.slowT = 1.5; b.slowT = 1.5; o.blockedT = 1.5; b.blockedT = 1.5; o.imm.set(b, 3.5); G.stats.blocks++;   // both players are engaged in the block for 1.5 s (user, v0.72; was 1 s); same blocker locked out until 2 s after it ends
+    o.slowT = 1.5; b.slowT = 1.5; o.blockedT = 1.5; b.blockedT = 1.5; o.imm.set(b, 3.5); o.blockWith = b; b.blockWith = o; G.stats.blocks++;   // both players are engaged in the block for 1.5 s (user, v0.72; was 1 s); same blocker locked out until 2 s after it ends
   }
 }
 function sim(dt){
@@ -1167,7 +1205,8 @@ function sim(dt){
   else runStep(dt);
   for (const p of G.all){ p.y = clamp(p.y, 0.9, FW-0.25); p.x = clamp(p.x, 0.2, FL-0.2); }
   if (G.phase !== 'live') return;
-  doBlocks();
+  endSeparatedBlocks(); doBlocks();
+  for (const p of G.all) p.thru = !(p.blockedT > 0) && G.all.some(o => o !== p && o.blockedT > 0 && dist(o,p) <= BLOCK_R);
   if (G.ball.state !== 'held') return;
   if (G.grapple) return grappleStep(dt);
   const c = G.ball.carrier, T = G.ballTeam, dirT = dirOf(T);
@@ -1605,6 +1644,57 @@ function limb(x1, y1, x2, y2, w, col){
   ctx.strokeStyle = OUT; ctx.lineWidth = w + 2.2; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
 }
+/* front or back view of a player (used in the middle of a spin move) */
+function drawAthleteFB(p, x, y, dirX, pose, T, back, f){
+  const S = FIG, skin = SKIN[p.skin||0], shade = c => colMix(c, -0.25);
+  const jersey = T.col, pants = T.pants, sec = T.sec, stripe = T.col;
+  ctx.save(); ctx.translate(x, y);
+  const hipY = -pose.hip*S, shY = hipY - 0.29*S, headY = hipY - 0.45*S, hr = 0.11*S, L1 = 0.25*S, L2 = 0.25*S;
+  const side = back ? -dirX : dirX;   // which screen side his ball arm is on
+  // legs: seen from the front, a stride shows up as one knee lifting (the leg looks shorter)
+  [-1, 1].forEach((s, i) => { const l = pose.legs[i], lx = s*0.065*S;
+    const ky = hipY + L1*Math.abs(Math.cos(l.t)), ay = ky + L2*Math.abs(Math.cos(l.t - l.k));
+    limb(lx, hipY, lx, ky, 0.13*S, pants);
+    limb(lx + s*0.045*S, hipY + 0.04*S, lx + s*0.045*S, ky, 0.025*S, stripe);   // pants side stripe
+    limb(lx, ky, lx, ay, 0.085*S, sec);                                            // sock
+    ctx.fillStyle = T.col; ctx.strokeStyle = OUT; ctx.lineWidth = 1.2;            // shoe, seen end-on
+    ctx.beginPath(); ctx.ellipse(lx, ay + 0.01*S, 0.055*S, 0.035*S, 0, 0, 7); ctx.fill(); ctx.stroke(); });
+  // pants seat
+  ctx.fillStyle = pants; ctx.strokeStyle = OUT; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.ellipse(0, hipY, 0.135*S, 0.075*S, 0, 0, 7); ctx.fill(); ctx.stroke();
+  // arms out for balance as he whips around; the ball arm stays tucked to the chest
+  const armOut = s => { const sh = {x:s*0.16*S, y:shY + 0.03*S}, el = {x:s*0.3*S, y:shY + 0.1*S}, h = {x:s*0.38*S, y:shY + 0.02*S};
+    limb(sh.x, sh.y, el.x, el.y, 0.075*S, skin); limb(sh.x, sh.y, (sh.x+el.x)/2, (sh.y+el.y)/2, 0.1*S, sec);
+    limb(el.x, el.y, h.x, h.y, 0.065*S, skin); ctx.fillStyle = sec; ctx.strokeStyle = OUT; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(h.x, h.y, 0.045*S, 0, 7); ctx.fill(); ctx.stroke(); };
+  armOut(-side);
+  // torso and shoulder pads
+  ctx.fillStyle = jersey; ctx.strokeStyle = OUT; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(-0.11*S, hipY); ctx.lineTo(0.11*S, hipY); ctx.lineTo(0.15*S, shY + 0.04*S); ctx.quadraticCurveTo(0.2*S, shY - 0.03*S, 0.09*S, shY - 0.04*S);
+  ctx.lineTo(-0.09*S, shY - 0.04*S); ctx.quadraticCurveTo(-0.2*S, shY - 0.03*S, -0.15*S, shY + 0.04*S); ctx.closePath(); ctx.fill(); ctx.stroke();
+  [-1,1].forEach(s => { ctx.fillStyle = sec; ctx.beginPath(); ctx.ellipse(s*0.17*S, shY + 0.02*S, 0.045*S, 0.035*S, 0, 0, 7); ctx.fill(); ctx.stroke(); });   // sleeves
+  ctx.fillStyle = jersey; ctx.beginPath(); ctx.ellipse(0, shY - 0.01*S, 0.19*S, 0.06*S, 0, Math.PI, 2*Math.PI); ctx.fill(); ctx.stroke();               // pads
+  limb(-0.1*S, hipY - 0.01*S, 0.1*S, hipY - 0.01*S, 0.03*S, sec);                                                                                          // belt
+  ctx.font = `800 ${Math.round(0.16*S)}px "Archivo Narrow","Arial Narrow",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 2; ctx.strokeStyle = colMix(T.col, -0.5); ctx.strokeText(String(p.num||''), 0, hipY - 0.15*S); ctx.fillStyle = sec; ctx.fillText(String(p.num||''), 0, hipY - 0.15*S);
+  // ball arm tucked across the chest (front view only; from behind it's hidden by his body)
+  let hand = {x: x + side*0.07*S, y: y + shY + 0.12*S};
+  if (!back){ limb(side*0.15*S, shY + 0.03*S, side*0.12*S, shY + 0.15*S, 0.075*S, skin); limb(side*0.12*S, shY + 0.15*S, side*0.02*S, shY + 0.12*S, 0.065*S, skin); }
+  else { limb(side*0.15*S, shY + 0.03*S, side*0.19*S, shY + 0.14*S, 0.075*S, skin); }
+  // neck and helmet
+  limb(0, shY - 0.03*S, 0, headY + hr*0.6, 0.07*S, skin);
+  ctx.fillStyle = T.helm; ctx.strokeStyle = OUT; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.ellipse(0, headY, hr*0.95, hr*1.02, 0, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = stripe; ctx.lineWidth = 0.22*hr; ctx.beginPath(); ctx.moveTo(0, headY - hr*0.98); ctx.lineTo(0, headY + (back ? hr*0.9 : -hr*0.2)); ctx.stroke();   // center stripe
+  if (!back){   // face and facemask
+    ctx.fillStyle = skin; ctx.beginPath(); ctx.ellipse(0, headY + hr*0.3, hr*0.55, hr*0.5, 0, 0, 7); ctx.fill();
+    ctx.lineCap = 'round'; ctx.beginPath();
+    ctx.moveTo(-hr*0.75, headY + hr*0.15); ctx.lineTo(hr*0.75, headY + hr*0.15); ctx.moveTo(-hr*0.65, headY + hr*0.55); ctx.lineTo(hr*0.65, headY + hr*0.55);
+    ctx.moveTo(0, headY + hr*0.15); ctx.lineTo(0, headY + hr*0.85);
+    ctx.strokeStyle = OUT; ctx.lineWidth = 2.6; ctx.stroke(); ctx.strokeStyle = sec; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.ellipse(-hr*0.35, headY - hr*0.5, hr*0.3, hr*0.15, -0.3, 0, 7); ctx.fill();   // shine
+  ctx.restore();
+  return pose.lying ? {x, y:y-S*0.15} : hand;
+}
 function drawAthlete(p, x, y, dirX, pose, T){
   const S = FIG, skin = SKIN[p.skin||0], shade = c => colMix(c, -0.28);
   const jersey = T.col, pants = T.pants, stripe = T.col, sleeve = T.sec, sock = T.sec, glove = T.sec, beltCol = T.sec, shoe = T.col;   // uniform colors (user, v0.62)
@@ -1613,8 +1703,12 @@ function drawAthlete(p, x, y, dirX, pose, T){
     const f = pose.fall == null ? 1 : pose.fall, e = f*f*(3-2*f);
     const fwd = (p === G.downed || pose.dove) ? 1 : -1;   // ball carriers (v0.46) and divers land face first, the way they were going
     ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(fwd*dirX*Math.PI/2*0.96*e); }
-  const spin = p.spinT > 0 ? Math.cos((1 - p.spinT/0.4) * 2*Math.PI) : 1;   // spin move: one full turn (user, v0.29)
-  ctx.scale(dirX * (Math.abs(spin) < 0.12 ? 0.12*Math.sign(spin||1) : spin), 1);
+  /* spin move (user, v0.29; redone v0.81): a real 360° turn over 0.4 s. He turns from his side view to face the camera,
+     then shows his other side, then his back (number and the back of the helmet), then comes around to his side again. */
+  if (p.spinT > 0){ const f = 1 - p.spinT/0.4;
+    if ((f >= 0.125 && f < 0.375) || (f >= 0.625 && f < 0.875)){ ctx.restore(); return drawAthleteFB(p, x, y, dirX, pose, T, f >= 0.625, f); }
+    if (f >= 0.375 && f < 0.625) dirX = -dirX; }
+  ctx.scale(dirX, 1);
   const L1 = 0.25*S, L2 = 0.25*S, hip = {x:0, y:-pose.hip*S};
   const up = {x:Math.sin(pose.lean), y:-Math.cos(pose.lean)}, n = {x:Math.cos(pose.lean), y:Math.sin(pose.lean)};
   const P = (o, ux, nx) => ({x:o.x + up.x*ux*S + n.x*nx*S, y:o.y + up.y*ux*S + n.y*nx*S});
@@ -1731,6 +1825,7 @@ function drawFootball(px, py, ang, len){
 function drawBall(){
   const b = G.ball;
   if (b.state === 'held'){ const c = b.carrier; if (!c.hand) return;
+    if (c.spinT > 0){ const f = 1 - c.spinT/0.4; if (f >= 0.625 && f < 0.875) return; }   // his back is to us mid-spin: the ball is hidden in front of him
     drawFootball(c.hand.x + (c.facing||1)*2, c.hand.y, (c.facing||1) > 0 ? -0.3 : Math.PI+0.3, 7); return; }
   if (b.state === 'loose'){   // a fumble bouncing / lying on the turf
     const px = X(b.x), py = Y(clamp(b.y, 0, FW)), lift = (b.h + 0.12)*SY*0.9;
