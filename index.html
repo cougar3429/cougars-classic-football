@@ -77,22 +77,22 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 /* uniform picker (same as baseball) */
 .selbtn { display: flex; align-items: center; gap: 8px; border: 2px solid var(--ink); border-radius: 10px; background: var(--cream); color: var(--ink); font: 700 14px var(--font-body); padding: 3px 12px 3px 4px; min-height: 44px; box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
 .swp { display: flex; flex: none; } .swp i { width: 16px; height: 34px; border: 2px solid var(--ink); box-sizing: border-box; } .swp i:first-child { border-radius: 17px 0 0 17px; border-right-width: 1px; } .swp i:last-child { border-radius: 0 17px 17px 0; border-left-width: 1px; }
-#colpick { z-index: 6; background: #0b1a12; gap: 8px; padding-top: 8px; }
+#colpick { z-index: 6; background: #0b1a12; gap: 5px; padding-top: 4px; }
 #colpick .crow { display: flex; align-items: center; gap: 10px; }
 #colpick .kits { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; max-width: 760px; }
 #colpick .kmid { text-align: center; padding-top: 18px; } #colpick .kmid h1 { font-size: 30px; } #colpick .kmid p { margin: 6px 0 0; font-size: 14px; }
 .kit { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 132px; padding: 6px 4px 4px; border: 3px solid var(--ink); border-radius: 14px; background: #16301f; color: var(--cream); cursor: pointer; font: 400 15px var(--font-display); }
 .kit[aria-pressed="true"] { outline: 4px solid var(--gold); outline-offset: 2px; background: #1f4a2e; }
-.kfig { display: block; width: 74px; height: 112px; } .kfig svg { width: 100%; height: 100%; display: block; }
+.kfig { display: block; width: 58px; height: 88px; } .kfig svg { width: 100%; height: 100%; display: block; }
 .ctime { font: 700 18px var(--font-body); color: var(--gold); min-width: 40px; }
 #colpick .crow > span { width: 92px; text-align: right; font: 700 12px var(--font-body); letter-spacing: 0.1em; text-transform: uppercase; color: #cfdccf; }
 .sws { display: flex; gap: 6px; }
-.sws button { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--ink); cursor: pointer; padding: 0; box-shadow: 0 3px 0 var(--ink); }
+.sws button { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--ink); cursor: pointer; padding: 0; box-shadow: 0 3px 0 var(--ink); }
 .sws button[aria-pressed="true"] { outline: 3px solid var(--gold); outline-offset: 2px; }
 
-.vols { display: flex; gap: 18px; align-items: center; }
+.vols { display: flex; gap: 14px; align-items: center; }
 .vols label { display: flex; align-items: center; gap: 8px; font: 700 12px var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; }
-.vols input[type=range] { width: 120px; accent-color: var(--gold); }
+.vols input[type=range] { width: 84px; accent-color: var(--gold); }
 #rotate { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #12301d; color: var(--cream); text-align: center; padding: 24px; font-size: 18px; z-index: 50; }
 #rotate b { font-family: var(--font-display); font-weight: 400; font-size: 24px; color: var(--gold); }
 @media (orientation: portrait) and (max-width: 900px) { #rotate { display: flex; } }
@@ -124,12 +124,13 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     <p>7 on 7 against the computer. You drive to the right. No kicks: a touchdown is worth 7.</p>
     <div class="trow">
       <button type="button" class="selbtn colbtn" id="colb1" aria-label="Team colors"><span class="swp"><i></i><i></i></span>COLORS</button>
+      <div class="row"><label>Team</label><div class="seg" role="group" aria-label="Home or away"><button type="button" id="sidehome" aria-pressed="true">HOME</button><button type="button" id="sideaway" aria-pressed="false">AWAY</button></div></div>
       <div class="row"><label>Opening</label><div class="seg" role="group" aria-label="Kick or receive"><button type="button" id="optkick" aria-pressed="false">KICK</button><button type="button" id="optrecv" aria-pressed="true">RECEIVE</button></div></div>
       <div class="row"><label>Controls</label><div class="seg" role="group" aria-label="Move the controls"><button type="button" id="ctlmove">MOVE</button><button type="button" id="ctlreset">RESET</button></div></div>
     </div>
-    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
+    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.59</small>
+    <small id="ver">Version 0.68</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -155,9 +156,11 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
       <div class="kmid"><h1>Team Colors</h1><p id="colnote">Tap a uniform, then pick its colors.</p></div>
       <button class="kit" id="kita" type="button" aria-pressed="false"><span class="kfig" id="kfa"></span><b>AWAY</b></button>
     </div>
-    <div class="crow"><span>Primary</span><div class="sws" id="swp" role="group" aria-label="Primary color: jersey and pants"></div></div>
-    <div class="crow"><span>Secondary</span><div class="sws" id="swa" role="group" aria-label="Secondary color: helmet, sleeves, socks and shoes"></div></div>
-    <div class="frow"><span id="coltime" class="ctime"></span><button class="big-btn" id="coldone" type="button">DONE</button></div>
+    <div class="crow"><span>Primary</span><div class="sws" id="swp" role="group" aria-label="Primary color: jersey, shoes, helmet stripe, pants stripes"></div></div>
+    <div class="crow"><span>Secondary</span><div class="sws" id="swa" role="group" aria-label="Secondary color: sleeves, socks, numbers, facemask"></div></div>
+    <div class="crow"><span>Helmet</span><div class="sws" id="swh" role="group" aria-label="Helmet color"></div></div>
+    <div class="crow"><span>Pants</span><div class="sws" id="swt" role="group" aria-label="Pants color"></div></div>
+    <button class="big-btn" id="coldone" type="button">DONE</button>
   </section>
 
   <section class="screen" id="quit" hidden>
@@ -165,7 +168,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     <p>The score will be lost. The game is paused while you decide.</p>
     <div class="row"><button class="big-btn" id="qyes" type="button">QUIT TO MENU</button><button class="big-btn" id="qno" type="button" style="background:#2f6fe0">KEEP PLAYING</button></div>
     <button class="big-btn alt" id="qmove" type="button">MOVE CONTROLS</button>
-    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label></div>
+    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label></div>
   </section>
 
   <section class="screen" id="final" hidden>
@@ -206,62 +209,62 @@ const colHex = c => (TEAMCOLS[c] || TEAMCOLS.red).hex;
 const colInk = c => (TEAMCOLS[c] || TEAMCOLS.red).ink;
 function colMix(hex, k){ const n = parseInt(hex.slice(1),16), c = [n>>16, (n>>8)&255, n&255].map(v => Math.round(k>0 ? v+(255-v)*k : v*(1+k)));
   return '#' + c.map(v => ('0'+v.toString(16)).slice(-2)).join(''); }
+/* uniforms (user, v0.62): 4 colors each. Primary = jersey, shoes, helmet stripe, pants side stripes.
+   Secondary = sleeves, socks, numbers, facemask. Helmet = helmet shell. Pants = pants. Helmet and pants start White. */
+const UNI_KEYS = ['p','s','h','pt'];
 const validUni = u => !!u && validCol(u.p) && validCol(u.s);
 const validKit = k => !!k && validUni(k.home) && validUni(k.away);
+const fullUni = u => ({p:u.p, s:u.s, h: validCol(u.h) ? u.h : 'white', pt: validCol(u.pt) ? u.pt : 'white'});
 const KIT_KEY = 'ccf-kit', CTL_KEY = 'ccf-ctl';
 let myKit = null;
-try { const mk = JSON.parse(localStorage.getItem(KIT_KEY) || 'null'); if (validKit(mk)) myKit = {home:{p:mk.home.p,s:mk.home.s}, away:{p:mk.away.p,s:mk.away.s}}; } catch (e) {}
-const KIT_FALLBACK = {home:{p:'blue',s:'white'}, away:{p:'white',s:'blue'}};
-const curKit = () => myKit || KIT_FALLBACK;
-function setKit(k){ if (!validKit(k)) return; myKit = {home:{p:k.home.p,s:k.home.s}, away:{p:k.away.p,s:k.away.s}};
-  try { localStorage.setItem(KIT_KEY, JSON.stringify(myKit)); } catch (e) {} colButtons(); }
+try { const mk = JSON.parse(localStorage.getItem(KIT_KEY) || 'null'); if (validKit(mk)) myKit = {home:fullUni(mk.home), away:fullUni(mk.away)}; } catch (e) {}
 function randCol(not){ const o = COL_ORDER.filter(c => c !== not); return o[Math.floor(Math.random()*o.length)]; }
-/* football uniform: primary = jersey and pants; secondary = helmet, sleeves, socks and shoes */
+/* nothing saved on this device: random primary and secondary colors (different from each other), white helmet and pants */
+const randUni = () => { const p = randCol(null); return {p, s:randCol(p), h:'white', pt:'white'}; };
+const KIT_RANDOM = {home:randUni(), away:randUni()};
+const curKit = () => myKit || KIT_RANDOM;
+function setKit(k){ if (!validKit(k)) return; myKit = {home:fullUni(k.home), away:fullUni(k.away)};
+  try { localStorage.setItem(KIT_KEY, JSON.stringify(myKit)); } catch (e) {} colButtons(); }
 function kitSVG(u){
-  const P = colHex(u.p), Sc = colHex(u.s), o = '#16202b', sk = '#e8b48a', fm = '#9aa3ad';
+  const P = colHex(u.p), Sc = colHex(u.s), Hc = colHex(u.h), Pt = colHex(u.pt), o = '#16202b', sk = '#e8b48a';
   return '<svg viewBox="0 0 60 92" aria-hidden="true">' +
-    '<rect x="18" y="82" width="10" height="6" rx="2" fill="'+Sc+'" stroke="'+o+'" stroke-width="1.5"/><rect x="32" y="82" width="10" height="6" rx="2" fill="'+Sc+'" stroke="'+o+'" stroke-width="1.5"/>' +
+    '<rect x="18" y="82" width="10" height="6" rx="2" fill="'+P+'" stroke="'+o+'" stroke-width="1.5"/><rect x="32" y="82" width="10" height="6" rx="2" fill="'+P+'" stroke="'+o+'" stroke-width="1.5"/>' +
     '<rect x="19" y="70" width="8" height="13" fill="'+Sc+'" stroke="'+o+'" stroke-width="1.5"/><rect x="33" y="70" width="8" height="13" fill="'+Sc+'" stroke="'+o+'" stroke-width="1.5"/>' +
-    '<path d="M18 52 H42 L41 71 H32 L30 61 L28 71 H19 Z" fill="'+P+'" stroke="'+o+'" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<path d="M18 52 H42 L41 71 H32 L30 61 L28 71 H19 Z" fill="'+Pt+'" stroke="'+o+'" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<path d="M20.5 55 V70 M39.5 55 V70" stroke="'+P+'" stroke-width="2.2"/>' +
     '<path d="M8 30 Q30 20 52 30 L50 40 L44 38 L43 53 H17 L16 38 L10 40 Z" fill="'+P+'" stroke="'+o+'" stroke-width="1.5" stroke-linejoin="round"/>' +
     '<path d="M8 30 L10 40 L16 38 L15 29 Z M52 30 L50 40 L44 38 L45 29 Z" fill="'+Sc+'" stroke="'+o+'" stroke-width="1.3" stroke-linejoin="round"/>' +
-    '<text x="30" y="47" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="11" fill="'+colInk(u.p)+'" stroke="'+o+'" stroke-width=".6">7</text>' +
+    '<text x="30" y="47" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="11" fill="'+Sc+'" stroke="'+o+'" stroke-width=".6">7</text>' +
     '<circle cx="12" cy="44" r="3" fill="'+sk+'"/><circle cx="48" cy="44" r="3" fill="'+sk+'"/>' +
-    '<path d="M19 18 Q19 4 30 4 Q42 4 42 17 L42 22 L35 23 L33 26 H22 Q19 23 19 18 Z" fill="'+Sc+'" stroke="'+o+'" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<path d="M19 18 Q19 4 30 4 Q42 4 42 17 L42 22 L35 23 L33 26 H22 Q19 23 19 18 Z" fill="'+Hc+'" stroke="'+o+'" stroke-width="1.5" stroke-linejoin="round"/>' +
     '<path d="M30 4 V20" stroke="'+P+'" stroke-width="2.4"/>' +
-    '<path d="M34 16 H44 M36 20 H44 M44 15 V22" stroke="'+fm+'" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
+    '<path d="M34 16 H44 M36 20 H44 M44 15 V22" stroke="'+o+'" stroke-width="2.8" fill="none" stroke-linecap="round"/>' +
+    '<path d="M34 16 H44 M36 20 H44 M44 15 V22" stroke="'+Sc+'" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
     '</svg>';
 }
-const KP = {on:false, first:false, active:'home', d:null, picked:null, t0:0, iv:null, then:null};
+const KP = {on:false, active:'home', d:null, changed:false, then:null};
 function colButtons(){ const k = curKit(); document.querySelectorAll('.colbtn .swp').forEach(sp => { const i = sp.querySelectorAll('i'); i[0].style.background = colHex(k.home.p); i[1].style.background = colHex(k.home.s); }); }
 function kpDraw(){
   $('kfh').innerHTML = kitSVG(KP.d.home); $('kfa').innerHTML = kitSVG(KP.d.away);
   $('kith').setAttribute('aria-pressed', String(KP.active==='home')); $('kita').setAttribute('aria-pressed', String(KP.active==='away'));
-  [['swp','p'],['swa','s']].forEach(row => {
+  [['swp','p'],['swa','s'],['swh','h'],['swt','pt']].forEach(row => {
     const box = $(row[0]);
     if (!box.children.length) COL_ORDER.forEach(c => { const b = document.createElement('button'); b.type = 'button'; b.dataset.c = c; b.style.background = colHex(c);
       b.setAttribute('aria-label', TEAMCOLS[c].name); b.title = TEAMCOLS[c].name;
-      b.addEventListener('click', () => { KP.d[KP.active][row[1]] = c; KP.picked[KP.active][row[1]] = true; kpDraw(); }); box.appendChild(b); });
+      b.addEventListener('click', () => { KP.d[KP.active][row[1]] = c; KP.changed = true; kpDraw(); }); box.appendChild(b); });
     Array.prototype.forEach.call(box.children, b => b.setAttribute('aria-pressed', String(b.dataset.c === KP.d[KP.active][row[1]])));
   });
-  const all = KP.picked.home.p && KP.picked.home.s && KP.picked.away.p && KP.picked.away.s;
-  $('coldone').textContent = KP.first ? 'CONFIRM' : 'DONE'; $('coldone').disabled = KP.first && !all;
-  $('colnote').textContent = KP.first ? (all ? 'All set. Tap CONFIRM.' : 'Pick both colors for your Home and Away uniforms.') : 'Tap a uniform, then pick its colors.';
 }
-function kpOpen(first, then){
-  const k = curKit(); KP.on = true; KP.first = first; KP.active = 'home'; KP.then = then || null;
-  KP.d = first ? {home:{p:randCol(null),s:randCol(null)}, away:{p:randCol(null),s:randCol(null)}} : {home:{p:k.home.p,s:k.home.s}, away:{p:k.away.p,s:k.away.s}};
-  KP.picked = {home:{p:!first,s:!first}, away:{p:!first,s:!first}};
-  clearInterval(KP.iv); $('coltime').textContent = '';
-  if (first){ KP.t0 = performance.now(); KP.iv = setInterval(() => { const left = 30 - Math.floor((performance.now()-KP.t0)/1000);
-    $('coltime').textContent = Math.max(0,left) + ''; if (left <= 0) kpDone(); }, 200); $('coltime').textContent = '30'; }
+/* an options screen (user, v0.62): nothing has to be picked, DONE always works, and colors are saved on this device only if you picked any */
+function kpOpen(){
+  const k = curKit(); KP.on = true; KP.active = 'home'; KP.changed = false;
+  KP.d = {home:fullUni(k.home), away:fullUni(k.away)};
   $('colpick').hidden = false; kpDraw();
 }
-/* time ran out: the colors not picked stay the random ones they started as */
-function kpDone(){ clearInterval(KP.iv); KP.iv = null; KP.on = false; setKit(KP.d); $('colpick').hidden = true; $('coltime').textContent = ''; const t = KP.then; KP.then = null; if (t) t(); }
+function kpDone(){ KP.on = false; if (KP.changed) setKit(KP.d); $('colpick').hidden = true; }
 $('kith').addEventListener('click', () => { KP.active = 'home'; kpDraw(); });
 $('kita').addEventListener('click', () => { KP.active = 'away'; kpDraw(); });
-$('colb1').addEventListener('click', () => kpOpen(!myKit));
+$('colb1').addEventListener('click', () => kpOpen());
 $('coldone').addEventListener('click', kpDone);
 colButtons();
 
@@ -341,16 +344,21 @@ $('ctldone').addEventListener('click', () => { ctlSave(); ctlEdit(false); });
 $('ctlres2').addEventListener('click', ctlReset);
 
 // ---------- sound (user, v0.24-v0.25): all made on the fly with Web Audio; the hike call uses the phone's speech voice ----------
-let AC = null, FX = null;
-const VOL = {fx:0.8, voice:0.8};
-try { const v = JSON.parse(localStorage.getItem('ccf-vol') || 'null'); if (v && isFinite(v.fx) && isFinite(v.voice)) { VOL.fx = v.fx; VOL.voice = v.voice; } } catch (e) {}
+let AC = null, FX = null, CROWD = null, MUSIC = null;
+const VOL = {fx:0.8, voice:0.8, crowd:0.8, music:0.8};
+try { const v = JSON.parse(localStorage.getItem('ccf-vol') || 'null'); if (v) for (const k in VOL) if (isFinite(v[k])) VOL[k] = v[k]; } catch (e) {}
+/* home or away, picked on the start menu and kept on this phone (user, v0.61). It decides who the crowd is for. */
+const SIDE = {home:true};
+try { SIDE.home = localStorage.getItem('ccf-side') !== 'away'; } catch (e) {}
+function saveSide(){ try { localStorage.setItem('ccf-side', SIDE.home ? 'home' : 'away'); } catch (e) {} }
 /* kick or receive, picked on the start menu and kept on this phone (user, v0.57). RECEIVE = you get the ball first. */
 const OPEN = {kick:false};
 try { OPEN.kick = localStorage.getItem('ccf-open') === 'kick'; } catch (e) {}
 function saveOpen(){ try { localStorage.setItem('ccf-open', OPEN.kick ? 'kick' : 'receive'); } catch (e) {} }
 function saveVol(){ try { localStorage.setItem('ccf-vol', JSON.stringify(VOL)); } catch (e) {} }
-function audioOn(){ try { if (!AC){ AC = new (window.AudioContext || window.webkitAudioContext)(); FX = AC.createGain(); FX.connect(AC.destination); }
-  FX.gain.value = VOL.fx; if (AC.state === 'suspended') AC.resume(); } catch (e) {} }
+function audioOn(){ try { if (!AC){ AC = new (window.AudioContext || window.webkitAudioContext)(); FX = AC.createGain(); FX.connect(AC.destination);
+    CROWD = AC.createGain(); CROWD.connect(AC.destination); MUSIC = AC.createGain(); MUSIC.connect(AC.destination); }
+  FX.gain.value = VOL.fx; CROWD.gain.value = VOL.crowd; MUSIC.gain.value = VOL.music; if (AC.state === 'suspended') AC.resume(); } catch (e) {} }
 function noiseBuf(sec){ const b = AC.createBuffer(1, Math.max(1, Math.floor(AC.sampleRate*sec)), AC.sampleRate), d = b.getChannelData(0);
   for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; return b; }
 function env(g, t, a, peak, rel){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+a); g.gain.exponentialRampToValueAtTime(0.0001, t+a+rel); }
@@ -377,9 +385,9 @@ const SFX = {
   whistle(){   // referee's pea whistle: the runner is down
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), trem = AC.createOscillator(), tg = AC.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(2750, t); trem.frequency.value = 28; tg.gain.value = 120; trem.connect(tg); tg.connect(o.frequency);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.28, t+0.02); g.gain.setValueAtTime(0.28, t+0.42); g.gain.exponentialRampToValueAtTime(0.0001, t+0.55);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t+0.02); g.gain.setValueAtTime(0.14, t+0.42); g.gain.exponentialRampToValueAtTime(0.0001, t+0.55);   // half as loud (user, v0.61)
     o.connect(g); g.connect(FX); o.start(t); trem.start(t); o.stop(t+0.6); trem.stop(t+0.6);
-    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2800; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.05, 0.02);
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2800; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.025, 0.02);
   },
   tackle(){   // pads hitting + body on turf
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
@@ -396,19 +404,6 @@ const SFX = {
     bp.frequency.setValueAtTime(350, t); bp.frequency.exponentialRampToValueAtTime(1100, t+0.18); bp.frequency.exponentialRampToValueAtTime(500, t+0.4);
     noiseThrough(t, 0.4, bp, 0.22, 0.12);
   },
-  cheer(){   // touchdown: crowd roar swelling up with a couple of horn blasts
-    const t = AC.currentTime;
-    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.7;
-    const n = AC.createBufferSource(); n.buffer = noiseBuf(2.6); const g = AC.createGain();
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t+0.5); g.gain.setValueAtTime(0.4, t+1.6); g.gain.exponentialRampToValueAtTime(0.0001, t+2.5);
-    n.connect(bp); bp.connect(g); g.connect(FX); n.start(t); n.stop(t+2.6);
-    for (let k=0;k<7;k++){ const st = t + 0.2 + Math.random()*1.4, o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
-      o.type = 'triangle'; o.frequency.setValueAtTime(500+Math.random()*300, st); o.frequency.exponentialRampToValueAtTime(900+Math.random()*400, st+0.35);
-      env(og, st, 0.05, 0.05, 0.35); o.connect(og); og.connect(FX); o.start(st); o.stop(st+0.5); }
-    [0, 0.32].forEach((dt2, k) => { const st = t + 0.15 + dt2; [233, 294, 349].forEach(f => { const o = AC.createOscillator(), og = AC.createGain();
-      o.type = 'sawtooth'; o.frequency.value = f*(k?1.26:1); const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
-      env(og, st, 0.02, 0.07, 0.28); o.connect(lp); lp.connect(og); og.connect(FX); o.start(st); o.stop(st+0.35); }); });
-  }
 };
 let HORN = null;
 function hornOn(){   // stadium air horn: two loud detuned reedy tones, held while the button is down
@@ -424,6 +419,115 @@ function hornOn(){   // stadium air horn: two loud detuned reedy tones, held whi
 function hornOff(){ try { if (!HORN) return; const t = AC.currentTime, h = HORN; HORN = null;
   h.g.gain.cancelScheduledValues(t); h.g.gain.setValueAtTime(h.g.gain.value || 0.35, t); h.g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
   h.oscs.forEach(o => o.stop(t+0.15)); } catch (e) {} }
+function crowdCheer(big){   // crowd roar; a touchdown gets the long one with a couple of horn blasts
+  try { if (!AC || !CROWD || VOL.crowd <= 0) return;
+    const t = AC.currentTime;
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.7;
+    const n = AC.createBufferSource(); n.buffer = noiseBuf(big ? 2.6 : 1.7); const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t+0.5); g.gain.setValueAtTime(0.4, t+(big?1.6:0.9)); g.gain.exponentialRampToValueAtTime(0.0001, t+(big?2.5:1.6));
+    n.connect(bp); bp.connect(g); g.connect(CROWD); n.start(t); n.stop(t+(big?2.6:1.7));
+    for (let k=0;k<(big?7:4);k++){ const st = t + 0.2 + Math.random()*(big?1.4:0.8), o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
+      o.type = 'triangle'; o.frequency.setValueAtTime(500+Math.random()*300, st); o.frequency.exponentialRampToValueAtTime(900+Math.random()*400, st+0.35);
+      env(og, st, 0.05, 0.05, 0.35); o.connect(og); og.connect(CROWD); o.start(st); o.stop(st+0.5); }
+    if (big) [0, 0.32].forEach((dt2, k) => { const st = t + 0.15 + dt2; [233, 294, 349].forEach(f => { const o = AC.createOscillator(), og = AC.createGain();
+      o.type = 'sawtooth'; o.frequency.value = f*(k?1.26:1); const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
+      env(og, st, 0.02, 0.07, 0.28); o.connect(lp); lp.connect(og); og.connect(CROWD); o.start(st); o.stop(st+0.35); }); });
+  } catch (e) {}
+}
+function crowdBoo(big){   // crowd booing: lots of low "boooo" voices swelling and fading
+  try { if (!AC || !CROWD || VOL.crowd <= 0) return; const t = AC.currentTime, len = big ? 2.8 : 1.8;
+    const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t+0.35); g.gain.setValueAtTime(0.5, t+len-0.6); g.gain.exponentialRampToValueAtTime(0.0001, t+len);
+    const f1 = AC.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 330; f1.Q.value = 2.5;
+    const f2 = AC.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 800; f2.Q.value = 4; const f2g = AC.createGain(); f2g.gain.value = 0.35;
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+    lp.connect(f1); lp.connect(f2); f2.connect(f2g); f1.connect(g); f2g.connect(g); g.connect(CROWD);
+    for (let k=0;k<14;k++){ const o = AC.createOscillator(), og = AC.createGain(), st = t + Math.random()*0.25, f = 95 + Math.random()*90;
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f*1.04, st); o.frequency.linearRampToValueAtTime(f*0.93, t+len);
+      const vib = AC.createOscillator(), vg = AC.createGain(); vib.frequency.value = 4 + Math.random()*3; vg.gain.value = f*0.02; vib.connect(vg); vg.connect(o.frequency);
+      og.gain.value = 0.12; o.connect(og); og.connect(lp); o.start(st); vib.start(st); o.stop(t+len+0.05); vib.stop(t+len+0.05); }
+    const nb = AC.createBufferSource(); nb.buffer = noiseBuf(len); const ng = AC.createGain(); ng.gain.value = 0.25; nb.connect(ng); ng.connect(lp); nb.start(t);
+  } catch (e) {}
+}
+/* steady crowd murmur under the whole game; a little quieter while the ball is live (user, v0.61) */
+let MURMUR = null;
+function murmurBuf(){   // a few seconds of crowd babble: many voices, each a string of short syllables
+  const sr = AC.sampleRate, len = Math.floor(sr*6), b = AC.createBuffer(1, len, sr), d = b.getChannelData(0);
+  for (let v=0; v<36; v++){
+    let i = Math.floor(Math.random()*sr*0.3), lp = 0; const cut = 0.05 + Math.random()*0.12, amp = 0.5 + Math.random()*0.5;
+    while (i < len){ const syl = Math.floor(sr*(0.07 + Math.random()*0.16)), gap = Math.floor(sr*(0.02 + Math.random()*(Math.random()<0.15 ? 0.6 : 0.08)));
+      for (let k=0; k<syl && i+k<len; k++){ lp += cut*((Math.random()*2-1) - lp); d[i+k] += lp*amp*Math.sin(Math.PI*k/syl); }
+      i += syl + gap; }
+  }
+  let m = 0; for (let i=0;i<len;i++) m = Math.max(m, Math.abs(d[i])); for (let i=0;i<len;i++) d[i] /= (m||1);
+  const fade = Math.floor(sr*0.3); for (let i=0;i<fade;i++){ const a = i/fade; d[i] = d[i]*a + d[len-fade+i]*(1-a); }   // smooth loop seam
+  return b;
+}
+function murmurLevel(lvl){
+  try { if (!AC || !CROWD) return;
+    if (!MURMUR && lvl > 0){ const src = AC.createBufferSource(); src.buffer = murmurBuf(); src.loop = true; src.loopStart = 0.3; src.loopEnd = 6;
+      const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 0.6;
+      const g = AC.createGain(); g.gain.value = 0.0001; src.connect(bp); bp.connect(g); g.connect(CROWD); src.start(); MURMUR = {src, g, lvl:0}; }
+    if (!MURMUR || MURMUR.lvl === lvl) return;
+    const t = AC.currentTime; MURMUR.lvl = lvl; MURMUR.g.gain.cancelScheduledValues(t); MURMUR.g.gain.setValueAtTime(Math.max(0.0001, MURMUR.g.gain.value), t);
+    MURMUR.g.gain.exponentialRampToValueAtTime(Math.max(0.0001, lvl), t+0.6);
+  } catch (e) {}
+}
+/* "DE-FENSE!" chant from the crowd on 3rd down when the home team is on defense, from the huddle to the snap (user, v0.61) */
+let CHANT = null;
+function chantOnce(t){
+  const bus = AC.createGain(); bus.gain.value = 1; bus.connect(CROWD); CHANT.buses.push(bus);
+  const vowel = (st, dur, peak, f1, f2) => { const g = AC.createGain(); g.gain.setValueAtTime(0.0001, st); g.gain.exponentialRampToValueAtTime(peak, st+0.03);
+      g.gain.setValueAtTime(peak, st+dur-0.05); g.gain.exponentialRampToValueAtTime(0.0001, st+dur);
+      const a = AC.createBiquadFilter(); a.type = 'bandpass'; a.frequency.value = f1; a.Q.value = 5;
+      const b = AC.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = f2; b.Q.value = 8; const bg = AC.createGain(); bg.gain.value = 0.5;
+      a.connect(g); b.connect(bg); bg.connect(g); g.connect(bus); return [a, b]; };
+  const hiss = (st, dur, f, peak, type) => { const fl = AC.createBiquadFilter(); fl.type = type || 'highpass'; fl.frequency.value = f;
+      const n = AC.createBufferSource(); n.buffer = noiseBuf(dur); const g = AC.createGain(); env(g, st, 0.01, peak, dur);
+      n.connect(fl); fl.connect(g); g.connect(bus); n.start(st); n.stop(st+dur+0.05); };
+  const de = vowel(t+0.03, 0.2, 0.5, 530, 1850), fen = vowel(t+0.5, 0.26, 0.6, 560, 1800), nn = vowel(t+0.74, 0.08, 0.35, 250, 2400);
+  hiss(t, 0.04, 500, 0.15, 'lowpass');            // "D"
+  hiss(t+0.42, 0.09, 1800, 0.18);                // "F"
+  hiss(t+0.8, 0.17, 4500, 0.14);                 // "SE"
+  for (let k=0;k<10;k++){ const f = 140 + Math.random()*140, jit = (Math.random()-0.5)*0.05;
+    [[de, t+0.03, 0.22, 1.0], [fen, t+0.5, 0.26, 1.12], [nn, t+0.74, 0.09, 1.1]].forEach(([dst, st, dur, up]) => {
+      const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f*up, st+jit); const og = AC.createGain(); og.gain.value = 0.14;
+      o.connect(og); dst.forEach(x => og.connect(x)); o.start(Math.max(AC.currentTime, st+jit)); o.stop(st+dur+0.08); }); }
+}
+function chantTick(on){
+  try { if (!AC || !CROWD) return;
+    if (!on){ if (CHANT){ const t = AC.currentTime; CHANT.buses.forEach(b => { b.gain.cancelScheduledValues(t); b.gain.setValueAtTime(b.gain.value, t); b.gain.linearRampToValueAtTime(0, t+0.15); }); CHANT = null; } return; }
+    if (VOL.crowd <= 0) return;
+    if (!CHANT) CHANT = {next: AC.currentTime + 0.05, buses: []};
+    if (AC.currentTime > CHANT.next - 0.1){ chantOnce(CHANT.next); CHANT.next += 1.3; CHANT.buses = CHANT.buses.slice(-3); }
+  } catch (e) {}
+}
+/* stadium music (user, v0.61): short original organ riffs, on about 1 in 4 dead balls, never during a live play */
+const RIFFS = [
+  [[60,1],[64,1],[67,1],[69,1],[67,1],[64,1],[67,1],[72,3]],
+  [[60,1],[61,1],[62,1],[63,1],[64,1],[65,1],[66,1],[67,1],[68,1],[69,1],[70,1],[71,1],[72,4]],
+  [[57,1],[60,1],[62,1],[64,2],[62,1],[60,1],[57,3],[0,1],[57,1],[60,1],[62,1],[64,3]],
+  [[[65,69,72],2],[0,1],[[67,71,74],2],[0,1],[[72,76,79],4]],
+  [[48,1],[55,1],[60,1],[55,1],[48,1],[55,1],[60,1],[64,1],[65,1],[64,1],[62,1],[60,3]],
+  [[62,1],[62,1],[65,1],[62,1],[67,2],[65,1],[69,1],[67,1],[74,4]]
+];
+let MUSICNOW = null;
+function playRiff(){
+  try { if (!AC || !MUSIC || VOL.music <= 0) return;
+    const bus = AC.createGain(); bus.gain.value = 1; bus.connect(MUSIC); MUSICNOW = bus;
+    const riff = RIFFS[Math.floor(Math.random()*RIFFS.length)], beat = 0.17; let t = AC.currentTime + 0.05;
+    for (const [n, len] of riff){ const notes = Array.isArray(n) ? n : (n ? [n] : []), dur = len*beat;
+      for (const m of notes){ const f = 440*Math.pow(2, (m-69)/12), g = AC.createGain();
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07/notes.length**0.5, t+0.012); g.gain.setValueAtTime(0.07/notes.length**0.5, t+dur*0.85); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+        [[1,1],[2,0.55],[3,0.3],[4,0.18],[6,0.08]].forEach(([h,a]) => { const o = AC.createOscillator(), og = AC.createGain(); o.type = 'sine'; o.frequency.value = f*h; og.gain.value = a;
+          o.connect(og); og.connect(g); o.start(t); o.stop(t+dur+0.02); });
+        g.connect(bus); }
+      t += dur; }
+  } catch (e) {}
+}
+function musicStop(){ try { if (!MUSICNOW) return; const t = AC.currentTime, b = MUSICNOW; MUSICNOW = null;
+  b.gain.cancelScheduledValues(t); b.gain.setValueAtTime(b.gain.value, t); b.gain.linearRampToValueAtTime(0, t+0.2); } catch (e) {} }
+function crowdReact(team, big){   // home team's good play: cheers; visitors' good play: boos (user, v0.61)
+  if (team == null || !G || G.home == null) return; if (team === G.home) crowdCheer(big); else crowdBoo(big); }
 function sfx(name){ try { if (AC && FX && VOL.fx > 0) SFX[name](); } catch (e) {} }
 function playLock(){ sfx('lock'); }
 function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant the ball is snapped (user, v0.31; quicker, no clicks v0.35)
@@ -451,8 +555,8 @@ function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant
 // ---------- constants ----------
 const FL = 120, FW = 8.5, MID = FW/2;
 const TEAM = [{name:'COUGARS'}, {name:'BOMBERS'}];
-function teamLook(u){ const p = colHex(u.p), s = colHex(u.s);
-  return {p:u.p, s:u.s, col:p, dark:colMix(p,-0.45), helm:s, helmDark:colMix(s,-0.45), ez:colMix(p,-0.18), ink:colInk(u.p)}; }
+function teamLook(u){ u = fullUni(u); const p = colHex(u.p), s = colHex(u.s);
+  return {p:u.p, s:u.s, col:p, dark:colMix(p,-0.45), sec:s, helm:colHex(u.h), pants:colHex(u.pt), helmDark:colMix(s,-0.45), ez:colMix(p,-0.18), ink:colInk(u.p)}; }
 const HUMAN = 0, CPU = 1;
 const isHuman = t => !DEMO && t === HUMAN;
 const dirOf = t => t === 0 ? 1 : -1;            // team 0 (you) attacks right (+x)
@@ -463,9 +567,11 @@ const QUARTER_SEC = 15*60, CLOCK_SCALE = 5, BETWEEN_PLAYS = 40;
 /* every speed slowed another 20% (user, v0.25) */
 const SLOW = 0.8;
 /* one running speed for every player (user, v0.27: "I never said to make players different speeds") */
-const RUN = 3.5*SLOW;
-const LINE = 2.3;   // offensive and defensive linemen run 2.3 yards per second (user, v0.28)
-const SPD = {walk:5*SLOW, qb:RUN, wr:RUN, carrier:RUN, ol:LINE, db:RUN, dbChase:RUN, mirror:RUN, lb:RUN, dl:LINE, ball:17*SLOW, dive:5*SLOW*1.15};   // dives go 15% farther (user, v0.48)
+/* every speed up 15% twice (user, v0.65 and v0.67): running, linemen, walking, dives, and the ball (passes and snaps) */
+const FASTER = 1.15*1.15;   // +15% (v0.65), then another +15% (user, v0.67)
+const RUN = 3.5*SLOW*FASTER;
+const LINE = 2.3*FASTER;   // offensive and defensive linemen: 2.3 yards per second (user, v0.28), +15% (v0.65)
+const SPD = {walk:5*SLOW*FASTER, qb:RUN, wr:RUN, carrier:RUN, ol:LINE, db:RUN, dbChase:RUN, mirror:RUN, lb:RUN, dl:LINE, ball:17*SLOW*FASTER, dive:5*SLOW*1.15*FASTER};   // dives go 15% farther (user, v0.48)
 const ROLE_SPD = {DB:SPD.dbChase, LB:SPD.lb, DL:SPD.dl};
 const ROUTES = ['up','down','streak','hook'];
 const FORMS = [{n:'TRIPS LEFT',L:3},{n:'2 LEFT 1 RIGHT',L:2},{n:'2 RIGHT 1 LEFT',L:1},{n:'TRIPS RIGHT',L:0}];
@@ -485,9 +591,10 @@ function arcPos(c, side, i){ const a = (-75 + i*30)*Math.PI/180, r = 1.5;
 function banner(text, sub, dur){ G.banner = {text, sub:sub||'', t:0, dur:dur||1.9}; }
 
 function newGame(){
-  const hk = curKit().home; Object.assign(TEAM[0], teamLook(hk)); Object.assign(TEAM[1], teamLook({p:randCol(hk.p), s:randCol(null)}));
+  const hk = curKit().home; Object.assign(TEAM[0], teamLook(hk)); { const cp = randCol(hk.p); Object.assign(TEAM[1], teamLook({p:cp, s:randCol(cp), h:'white', pt:'white'})); }   // computer: random primary/secondary, white helmet and pants
   G = {score:[0,0], quarter:1, clock:QUARTER_SEC, poss: DEMO ? (rnd()<.5?0:1) : (OPEN.kick ? 1 : 0), phase:'formation', t:0,
        camX:60, banner:null, stats:{plays:0,int:0,inc:0,sack:0,td:[0,0],comp:0,pick6:0,qbrun:0,blocks:0,safety:0}};
+  G.home = DEMO ? 0 : (SIDE.home ? HUMAN : CPU);   // whose crowd it is (user, v0.61)
   G.firstPoss = G.poss; G.los = own20(G.poss); setFirstDown();
   startHuddle(); G.camX = G.los; banner(TEAM[G.poss].name+' BALL FIRST');
 }
@@ -511,7 +618,7 @@ function startHuddle(){
   for (const p of G.all){ const k = p.role, i = seen[k] = (seen[k]||0); seen[k]++; p.num = NUMS[k][i % NUMS[k].length]; p.skin = (p.num*7 + p.team*3) % 5; }
   for (const w of G.wrs) w.throwKey = null;
   faceCenters(); G.downed = null; G.tdBy = null; G.throwT = -9;
-  G.ball = {state:'held', carrier:G.qb};
+  G.ball = {state:'spot'};   // the ball sits on the line of scrimmage until the center snaps it (user, v0.63)
   G.guessesDone = false; G.returning = false;
   G.phase = 'formation'; G.mode = null; G.t = 0; G.visit = 0; G.wait = 0; G.waiting = false; G.formation = null; G.ctl = null;
 }
@@ -564,15 +671,20 @@ function routeFromDir(dir, d){
 function setAlign(){
   const d = G.d, L = G.los;
   G.qb.tx = L-d*2; G.qb.ty = MID;                      // QB lines up 2 yards behind the line (user, v0.45)
-  G.ols.forEach((o,i) => { o.tx = L-d*0.5; o.ty = MID+(i-1)*0.6; });
-  G.wrs.forEach(w => { w.tx = L-d*0.5; w.ty = w.alignY; });
-  G.dls.forEach((o,i) => { o.tx = L+d*0.8; o.ty = MID+(i-1)*0.6; });
-  G.dbs.forEach((b,i) => { b.tx = L+d*2; b.ty = G.wrs[i].alignY; });   // DBs line up 2 yards off the line (user, v0.54)
-  G.lb.tx = L+d*3; G.lb.ty = MID;                      // 3 yards off the line (user, v0.42)
+  /* linemen face each other with one ball length between their helmets (user, v0.63): each man's feet go back from the
+     ball by half a ball length plus how far his helmet sticks out in front of his feet in his stance */
+  const halfBall = BALL_LEN_YD/2, lineGap = halfBall + helmetFrontYd(POSES.three());
+  G.ols.forEach((o,i) => { o.tx = L-d*lineGap; o.ty = MID+(i-1)*0.6; });
+  G.wrs.forEach(w => { w.tx = L-d*(halfBall + helmetFrontYd(POSES.ready())); w.ty = w.alignY; });   // receivers on the line (NFL): helmet at the back of the ball, not in the neutral zone (user, v0.64)
+  G.dls.forEach((o,i) => { o.tx = L+d*lineGap; o.ty = MID+(i-1)*0.6; });
+  G.dbs.forEach((b,i) => { b.tx = L+d*2; b.ty = G.wrs[i].alignY; });   // 2 yards off (v0.54); a blitzing DB lines up there too, so the blitz isn't given away (user, v0.66)
+  G.lb.tx = L+d*2; G.lb.ty = MID;                      // 2 yards off the line, both teams (user, v0.60)
 }
-const slowMul = p => (p.slowT > 0 ? 0.5 : 1) * (p.boost ? 1.2 : 1);   // a block halves speed for 1 s; catch-up boost +20% (user, v0.31)
+const slowMul = p => (p.slowT > 0 ? 0.5 : 1) * (p.pickT > 0 ? 0.5 : 1) * (p.boost ? 1.2 : 1)
+  * (p.role === 'DB' && p.mode === 'blitz' && G.phase === 'live' && G.liveT < 1.5 ? 1.3 : 1);   // a blitzing DB is 30% faster for the first 1.5 s of the play (user, v0.65)
+   // picking up a fumble: half speed for 0.3 s (user, v0.60)   // a block halves speed for 1 s; catch-up boost +20% (user, v0.31)
 function moveToward(p, t, spd, dt){
-  if (p.dive || p.downT > 0 || p.grappled) return false;      // diving or on the ground after a dive
+  if (p.dive || p.downT > 0 || p.fallT > 0 || p.grappled) return false;      // diving, falling, or on the ground
   spd *= slowMul(p);
   const dx = t.x-p.x, dy = t.y-p.y, k = Math.hypot(dx,dy), step = spd*dt;
   if (k <= step || k < 1e-4){ p.x = t.x; p.y = t.y; p.vx = 0; p.vy = 0; return true; }
@@ -584,7 +696,7 @@ function walkAll(dt){ let done = true;
   return done; }
 function visitStep(dt, visitor, list, center, human, assign, done){
   if (!human){   // the computer makes all its calls instantly — you never wait on it (user, v0.23)
-    for (; G.visit < list.length; G.visit++) assign(list[G.visit], ROUTES[rnd()*4|0]);
+    for (; G.visit < list.length; G.visit++) assign(list[G.visit], (list === G.dbs && rnd() < 0.25) ? 'blitz' : ROUTES[rnd()*4|0]);   // each computer DB blitzes 25% of plays (user, v0.60)
     G.wait = 0; G.waiting = false; return done();
   }
   const tgt = list[G.visit];
@@ -593,7 +705,7 @@ function visitStep(dt, visitor, list, center, human, assign, done){
   if (!moveToward(visitor, spot, SPD.walk*0.6, dt)){ G.waiting = false; return; }
   visitor.face = Math.atan2(tgt.y-visitor.y, tgt.x-visitor.x); G.waiting = true;
   let r = null;
-  if (human){ if (input.dirEdge) r = routeFromDir(input.dirEdge, G.d); }
+  if (human){ if (list === G.dbs && input.btnEdge) r = 'blitz'; else if (input.dirEdge) r = routeFromDir(input.dirEdge, G.d); }   // button alone = this DB blitzes (user, v0.60)
   else { G.wait += dt; if (G.wait > 0.35) r = ROUTES[rnd()*4|0]; }
   if (r){ assign(tgt, r); G.visit++; G.wait = 0; G.waiting = false; if (G.visit >= list.length) done(); }
 }
@@ -639,32 +751,55 @@ function snap(){
   const d = G.d;
   G.phase = 'live'; G.mode = 'pass'; G.tapNoDir = false; G.liveT = 0; G.aimArmed = false; G.ctl = null; G.ballTeam = G.off; G.stats.plays++;
   G.cq = {think:0, scramble:false};
-  for (const p of G.all){ p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; p.turned = false; }
+  G.fumText = null; musicStop(); chantTick(false);
+  for (const p of G.all){ p.fallT = 0; p.pickT = 0; p.hitBefore = false; p.proneUp = false; p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; p.turned = false; }
   G.grapple = null;
   for (const w of G.wrs){ w.wp = routeWaypoints(w.route, w.x, w.y, d); w.wpi = 0; w.stopped = false; }
   for (const b of G.dbs){
     const w = b.cover;
-    if (b.guess === w.route) b.mode = 'mirror';
+    if (b.guess === 'blitz') b.mode = 'blitz';
+    else if (b.guess === w.route) b.mode = 'mirror';
     else { b.mode = 'wrong'; b.wpi = 0;
       b.wp = routeWaypoints(b.guess, w.x, w.y, d).map(p => ({x:p.x+(b.x-w.x), y:p.y+(b.y-w.y)})); }
   }
   for (const dl of G.dls){ dl.beatsFirst = rnd() < 0.1; dl.slip = null; }   // 10% of the time a defensive lineman avoids the initial block (user, v0.18)
   G.lb.plan = rnd() < 0.3 ? 'blitz' : 'hold';          // computer linebacker blitzes on 30% of plays, from the snap (user, v0.16)
-  G.ball = {state:'held', carrier:G.qb};
+  /* shotgun snap from the center (user, v0.63): the ball flies from the line to the QB at passing speed; he has it when it arrives */
+  G.ball = {state:'snap', x:G.los, y:MID}; G.ball.d0 = Math.max(0.1, dist(G.ball, G.qb));
 }
 function humanMove(p, spd, dt){
-  if (p.dive || p.downT > 0 || p.grappled) return;
+  if (p.dive || p.downT > 0 || p.fallT > 0 || p.grappled) return;
   const h = held(); let vx = h.right-h.left, vy = h.down-h.up; const n = Math.hypot(vx,vy);
   spd *= slowMul(p);
   if (n){ vx/=n; vy/=n; p.x += vx*spd*dt; p.y += vy*spd*dt; p.vx = vx*spd; p.vy = vy*spd; p.face = Math.atan2(vy,vx); }
   else { p.vx = 0; p.vy = 0; }
 }
+/* which way would this player dive right now? null = no dive (can't, or no direction) */
+function diveDir(me){
+  if (!me || me.dive || me.downT > 0 || me.fallT > 0 || me.blockedT > 0 || me.grappled) return null;   // no diving while engaged in a block, blocker or blocked (user, v0.34)
+  const h = held(); let vx = h.right-h.left, vy = h.down-h.up;
+  /* a defender within dive range of the ball carrier dives at him, whatever direction is held (user, v0.60).
+     Aimed where the runner will be when the dive gets there. */
+  const c = G.ball && G.ball.state === 'held' ? G.ball.carrier : null, spd = SPD.dive*(me.boost ? 1.2 : 1);
+  if (c && c.team !== me.team && dist(me,c) <= spd*0.3 + TACKLE){
+    const t = Math.min(0.3, dist(me,c)/spd); vx = c.x + c.vx*t - me.x; vy = c.y + c.vy*t - me.y; }
+  /* a ball carrier with no direction held dives the way he's running (v0.67) */
+  if (!vx && !vy && me === c){ if (Math.hypot(me.vx||0, me.vy||0) > 0.1){ vx = me.vx; vy = me.vy; } else vx = me.facing || dirOf(me.team); }
+  const n = Math.hypot(vx,vy);
+  return n ? {vx:vx/n, vy:vy/n} : null;
+}
 function tryDive(who){
-  const me = who || humanDefender();
-  if (me && !me.dive && !(me.downT > 0) && !(me.blockedT > 0)){   // no diving while engaged in a block, blocker or blocked (user, v0.34)
-    const h = held(), vx = h.right-h.left, vy = h.down-h.up, n = Math.hypot(vx,vy);
-    if (n){ me.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; me.touchedInAir = false; if (vx) me.facing = Math.sign(vx); }
-  }
+  const me = who || humanDefender(), v = diveDir(me);
+  if (v){ me.proneUp = false; me.dive = {t:0, vx:v.vx*SPD.dive, vy:v.vy*SPD.dive}; me.touchedInAir = false; if (v.vx) me.facing = Math.sign(v.vx); }
+}
+/* the player the button would dive with right now, if any (for the button's label) */
+function diverNow(){
+  if (G.phase === 'live'){
+    if (isHuman(G.def)) return G.ctl && G.ctl.p.team === G.def ? G.ctl.p : (G.ctl ? null : G.lb);
+    if (isHuman(G.off) && G.mode === 'run' && G.ctl && G.ball.state === 'held' && G.ctl.p === G.ball.carrier) return G.ctl.p;
+    return null; }
+  if (G.phase === 'dead' && isHuman(G.def) && G.t < 1 && !hornAllowed()) return humanDefender();
+  return null;
 }
 function stepDives(dt){
   for (const p of G.all){
@@ -672,6 +807,7 @@ function stepDives(dt){
       p.x += p.dive.vx*m*dt; p.y += p.dive.vy*m*dt; p.vx = p.dive.vx*m; p.vy = p.dive.vy*m; p.dive.t += dt;
       p.y = clamp(p.y, 0.9, FW-0.25); p.x = clamp(p.x, 0.2, FL-0.2);
       if (p.dive.t >= 0.3){ p.dive = null; p.downT = 0.5; p.vx = p.vy = 0; sfx('slide'); } }   // 0.5 s to get up (user, v0.48)
+    else if (p.fallT > 0){ p.fallT -= dt; p.vx = p.vy = 0; if (p.fallT <= 0){ p.fallT = 0; p.downT = 0.5; p.proneUp = true; } }   // fumbler: 0.4 s fall, then the 0.5 s get-up
     else if (p.downT > 0){ p.downT -= dt; p.vx = p.vy = 0; }
   }
 }
@@ -799,17 +935,18 @@ function cover(db, dt){
   const w = db.cover, d = G.d;
   /* once a DB gets to his receiver he stays between the QB and him, 0.5 yards from the receiver (user, v0.56) */
   const inside = (px, py) => { const q = G.qb, k = Math.hypot(q.x-px, q.y-py) || 1; return {x:px+(q.x-px)/k*0.5, y:py+(q.y-py)/k*0.5}; };
+  if (db.mode === 'blitz') return moveToward(db, ballSpot(), SPD.dbChase, dt);   // blitz: straight for the ball carrier, his receiver ignored (user, v0.60)
   if (db.mode === 'mirror') moveToward(db, inside(w.x, w.y), SPD.mirror, dt);
   else if (db.mode === 'wrong'){
     const wp = db.wp[db.wpi]; if (wp){ if (moveToward(db, wp, SPD.db, dt)) db.wpi++; } else { db.vx = db.vy = 0; }
-    if (dist(db,w) > 4 || G.liveT >= 2) db.mode = 'chase';   // gives up the route and chases once his man is 4 yards away or 2 seconds have passed since the snap (user, v0.55)
+    if (dist(db,w) > 5 || G.liveT >= 3) db.mode = 'chase';   // gives up the route and chases once his man is 5 yards away or 3 seconds have passed since the snap (user, v0.60)
   } else moveToward(db, inside(w.x+w.vx*0.2, w.y+w.vy*0.2), SPD.dbChase, dt);
 }
 /* computer linebacker (user, v0.17): on 30% of plays he attacks the QB while the QB has the ball, then the ball once it's thrown.
    Otherwise he runs after a wide-open receiver (no other defender within 5 yards of him); if there isn't one,
    he attacks the ball once 2 seconds have passed since the snap. */
 function airBallPos(b){ const f = Math.min(1, b.t/b.T); return {x:b.sx+(b.tx-b.sx)*f, y:b.sy+(b.ty-b.sy)*f}; }
-function ballSpot(){ const b = G.ball; return b.state === 'air' ? airBallPos(b) : b.carrier; }
+function ballSpot(){ const b = G.ball; return b.state === 'air' ? airBallPos(b) : (b.state === 'loose' || b.state === 'snap') ? b : b.state === 'spot' ? {x:G.los, y:MID} : b.carrier; }
 function cpuLB(dt){
   const lb = G.lb;
   if (lb.plan === 'blitz') return moveToward(lb, ballSpot(), SPD.lb, dt);
@@ -820,9 +957,14 @@ function cpuLB(dt){
   lb.vx = lb.vy = 0;
 }
 function passStep(dt){
-  const q = G.qb, d = G.d;
-  if (isHuman(G.off)) humanQB(dt); else cpuQB(dt);
-  if (G.mode !== 'pass') return;            // the ball was just thrown
+  const q = G.qb, d = G.d, b = G.ball;
+  if (b.state === 'snap'){   // ball on its way back from the center; the QB waits for it
+    const k = dist(b,q), st = SPD.ball*dt;
+    if (k <= st) G.ball = {state:'held', carrier:q}; else { b.x += (q.x-b.x)/k*st; b.y += (q.y-b.y)/k*st; }
+  } else {
+    if (isHuman(G.off)) humanQB(dt); else cpuQB(dt);
+    if (G.mode !== 'pass') return;          // the ball was just thrown
+  }
   for (const w of G.wrs) followRoute(w, dt);
   for (const db of G.dbs) cover(db, dt);
   for (const dl of G.dls) moveToward(dl, q, SPD.dl, dt);                 // defensive linemen attack the ball carrier (user)
@@ -857,12 +999,17 @@ function airStep(dt){
   if (f >= 1) endPlay('INC', {text:'INCOMPLETE'});
 }
 function resolveShot(p, pt){
+  /* no interceptions behind the line of scrimmage (user, v0.66): a defender who gets there first bats it down,
+     and a contested ball is broken up */
+  const behind = (pt.x - G.los)*G.d < 0;
+  if (behind && p.team === G.def) return endPlay('INC', {text:'BATTED DOWN'});
   const opps = G.all.filter(o => o.team !== p.team && o !== G.qb && dist(o,pt) < VIC);
   if (!opps.length) return p.team === G.off ? doCatch(p) : doIntercept(p);      // by himself: 100%
   // contested: 50% interception, 50% incomplete (75 / 25 if it's a receiver his DB guessed right on)
   let pInt = 0.5;
   if (p.team === G.off){ const cb = G.dbs.find(x => x.cover === p); if (cb && cb.mode === 'mirror' && opps.includes(cb)) pInt = 0.75; }
   else if (p.role === 'DB' && p.mode === 'mirror' && opps.includes(p.cover)) pInt = 0.75;
+  if (behind) return endPlay('INC', {text:'BROKEN UP'});
   if (rnd() < pInt) doIntercept(p.team === G.def ? p : nearestOf(opps, pt));
   else endPlay('INC', {text:'BROKEN UP'});
 }
@@ -932,7 +1079,7 @@ function runStep(dt){
 //            a different blocker can block him as soon as he reaches him. ----------
 function doBlocks(){
   let blockers = [], targets = [];
-  if (G.mode === 'pass'){ blockers = G.ols; targets = [G.lb, ...G.dls]; }
+  if (G.mode === 'pass'){ blockers = G.ols; targets = [G.lb, ...G.dls, ...G.dbs.filter(b => b.mode === 'blitz')]; }
   else if (G.mode === 'run'){ const c = G.ball.carrier, T = G.ballTeam;
     blockers = G.all.filter(p => p.team === T && p !== c); targets = G.all.filter(p => p.team !== T); }
   for (const b of blockers) for (const o of targets){
@@ -946,7 +1093,8 @@ function doBlocks(){
 function sim(dt){
   G.liveT += dt; G.clock = Math.max(0, G.clock - dt*CLOCK_SCALE);
   if (input.btnUpEdge || !input.btn) G.aimArmed = true;   // the hike press has been let go: the button now throws
-  if (G.ctl && G.ctl.pending && input.dirEdge) G.ctl.pending = false;   // first input after the change: you take over
+  { const h = held();   // first input after the change, a direction pressed or already held, or the button: you take over (v0.67/v0.68)
+    if (G.ctl && G.ctl.pending && (input.dirEdge || input.btnEdge || h.up || h.down || h.left || h.right)) G.ctl.pending = false; }
   /* dive (user, v0.24): on defense the button makes the defender you control dive in his running direction (8-way).
      He covers 1.5 yards in 0.3 s, then stays on the ground 0.8 s. No direction held = no running direction = no dive. */
   if (input.btnEdge){
@@ -959,9 +1107,10 @@ function sim(dt){
   if (G.ball.state === 'held'){ const c = G.ball.carrier, dirT = dirOf(G.ballTeam);
     for (const p of G.all){ if (p === c){ p.behindT = 0; p.boost = false; continue; }
       if ((c.x - p.x)*dirT > 0){ p.behindT += dt; if (p.behindT >= 2) p.boost = true; } else { p.behindT = 0; p.boost = false; } } }
-  for (const p of G.all){ if (p.blockedT > 0) p.blockedT -= dt; if (p.spinT > 0) p.spinT -= dt; if (p.slowT > 0) p.slowT -= dt; for (const m of [p.imm, p.timm]) for (const [k,v] of m){ if (v - dt <= 0) m.delete(k); else m.set(k, v - dt); } }
+  for (const p of G.all){ if (p.pickT > 0) p.pickT -= dt; if (p.blockedT > 0) p.blockedT -= dt; if (p.spinT > 0) p.spinT -= dt; if (p.slowT > 0) p.slowT -= dt; for (const m of [p.imm, p.timm]) for (const [k,v] of m){ if (v - dt <= 0) m.delete(k); else m.set(k, v - dt); } }
   if (G.mode === 'pass') passStep(dt);
   else if (G.mode === 'air'){ airStep(dt); if (G.phase !== 'live') return; }
+  else if (G.mode === 'loose'){ looseStep(dt); if (G.phase !== 'live') return; }
   else runStep(dt);
   for (const p of G.all){ p.y = clamp(p.y, 0.9, FW-0.25); p.x = clamp(p.x, 0.2, FL-0.2); }
   if (G.phase !== 'live') return;
@@ -972,10 +1121,14 @@ function sim(dt){
   if ((c.x-goalX(T))*dirT >= 0) return endPlay('TD', {team:T});
   /* a diving ball carrier (user, v0.49/v0.51): a touch while he's airborne doesn't put him down, but he's down the moment
      he lands; a touch while he's on the ground (before he's back up) puts him down right there */
-  if (c.dive){ if (G.all.some(o => o.team !== T && dist(o,c) < TACKLE)) c.touchedInAir = true; return; }
+  if (c.dive){ const o = G.all.find(o => o.team !== T && dist(o,c) < TACKLE);
+    if (o){ if (!c.touchedInAir) c.touchDive = !!o.dive; c.touchedInAir = true; } return; }
   if (c.downT > 0){
-    if (c.touchedInAir || G.all.some(o => o.team !== T && dist(o,c) < TACKLE)){
-      sfx('tackle'); G.downEarly = true;
+    const o = c.touchedInAir ? null : G.all.find(o => o.team !== T && dist(o,c) < TACKLE);
+    if (c.touchedInAir || o){
+      sfx('tackle');
+      if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.2) return fumble(c);   // first contact was a dive: 20% fumble (user, v0.61)
+      G.downEarly = true;
       const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
       if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack:false});
       return endPlay('INTDOWN', {x: inOwnEZ ? null : c.x});
@@ -987,10 +1140,12 @@ function sim(dt){
   const hitters = G.all.filter(o => o.team !== T && dist(o,c) < TACKLE && (o.dive || !((c.timm.get(o)||0) > 0)));
   if (hitters.length){
     if (hitters.length === 1 && !hitters[0].dive) G.stats.v1 = (G.stats.v1||0) + 1; else G.stats.multi = (G.stats.multi||0) + 1;
-    if (hitters.length === 1 && !hitters[0].dive && rnd() < 0.2){ c.timm.set(hitters[0], 2.0); c.spinT = 0.4;   // broken tackle: spin move (user, v0.30)
+    if (hitters.length === 1 && !hitters[0].dive && rnd() < 0.2){ c.timm.set(hitters[0], 2.0); c.spinT = 0.4; c.hitBefore = true;   // broken tackle: spin move (user, v0.30)
       G.stats.broken = (G.stats.broken||0) + 1; return; }
     // not evaded: the tacklers lock on and grapple him for 0.3 s before he goes down (user, v0.38)
     sfx('tackle');
+    /* a dive that's the first contact on the runner this play (alone or at the same moment as others) forces a fumble 20% of the time (user, v0.61) */
+    if (!c.hitBefore && hitters.some(h => h.dive) && rnd() < 0.2) return fumble(c);
     // a diver doesn't grapple: he's at the runner's feet and trips him, so the runner slows and falls by himself (user, v0.40)
     const holders = hitters.filter(h => !h.dive);
     if (!holders.length){   // tripped by a dive: he goes down right there, straight into the 0.4 s fall (user, v0.41)
@@ -1016,6 +1171,59 @@ function grappleStep(dt){
   if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack: g.sack});
   return endPlay('INTDOWN', {x: inOwnEZ ? null : c.x});
 }
+// ---------- fumbles (user, v0.60) ----------
+/* A dive that makes the tackle (first contact) knocks the ball loose 20% of the time. It bounces 2 or 3 times (random),
+   1.5 yards each in a random direction, 0.4 s per bounce. The first player to touch it, in the air or on the ground,
+   recovers it and runs at half speed for 0.3 s while he picks it up. If a player from the other team is within 1 yard
+   of the ball right then, he's tackled on the spot. Out of bounds: dead, and the team that fumbled keeps it there
+   (out the back of the end zone it's attacking: touchback for the other team). */
+const BOUNCE_LEN = 1.5, BOUNCE_T = 0.4, BOUNCE_H = 0.5;
+function fumble(c){
+  G.stats.fum = (G.stats.fum||0) + 1;
+  if (!(c.downT > 0)) c.fallT = 0.4; c.vx = c.vy = 0;   // the runner falls (0.4 s), then the 0.5 s get-up (already down after his own dive: just the get-up)
+  G.ball = {state:'loose', x:c.x, y:c.y, left: rnd() < 0.5 ? 2 : 3, t:0, h:0};
+  nextBounce(G.ball); G.mode = 'loose'; G.fumBy = G.ballTeam;
+  /* you take your player nearest the ball (he keeps going for it until you press a direction), unless you're already steering one */
+  const hum = isHuman(G.off) ? G.off : isHuman(G.def) ? G.def : null;
+  if (hum != null){
+    const cur = hum === G.def ? humanDefender() : (G.ctl && !G.ctl.pending ? G.ctl.p : null);
+    if (cur && cur !== c) G.ctl = {p:cur, pending:false};
+    else G.ctl = {p: nearestOf(G.all.filter(p => p.team === hum && p !== c), G.ball), pending:true}; }
+}
+function nextBounce(b){
+  const a = rnd()*Math.PI*2;
+  b.sx = b.x; b.sy = b.y; b.tx = b.x + Math.cos(a)*BOUNCE_LEN; b.ty = b.y + Math.sin(a)*BOUNCE_LEN; b.t = 0; b.left--;
+}
+function ballDeadFor(T, x){   // team T's runner is down (or its ball is dead) at x
+  const inOwnEZ = (x-goalX(1-T))*dirOf(T) <= 0;
+  if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x, sack:false});
+  return endPlay('INTDOWN', {x: inOwnEZ ? null : x});
+}
+function looseStep(dt){
+  const b = G.ball;
+  if (b.left >= 0 && b.t < BOUNCE_T){   // bouncing
+    b.t = Math.min(BOUNCE_T, b.t + dt); const f = b.t/BOUNCE_T;
+    b.x = b.sx + (b.tx-b.sx)*f; b.y = b.sy + (b.ty-b.sy)*f; b.h = BOUNCE_H*4*f*(1-f);
+    if (b.t >= BOUNCE_T){ b.bounced = true; if (b.left > 0) nextBounce(b); else { b.left = -1; b.h = 0; } }
+  }
+  if (b.y < 0 || b.y > FW || b.x < 0 || b.x > FL){   // out of bounds: dead, the team that fumbled keeps it (real rule)
+    const T = G.fumBy, x = clamp(b.x, 0, FL);
+    if ((x-goalX(T))*dirOf(T) >= 0) return T === G.off ? endPlay('INTDOWN', {x:null, text:'OUT OF END ZONE'}) : endPlay('POSS', {team:G.off, text:'OUT OF END ZONE'});
+    return ballDeadFor(T, x);
+  }
+  for (const p of G.all){ if (isCtl(p)) humanMove(p, roleSpd(p), dt); else moveToward(p, b, roleSpd(p), dt); }   // everyone goes for it
+  if (!b.bounced) return;   // nobody can pick it up until it has hit the ground once (user, v0.64)
+  const grab = {x:b.x, y:clamp(b.y, 0.9, FW-0.25)};
+  let first = null, fd = REACH;
+  for (const p of G.all){ if (p.fallT > 0 || p.downT > 0) continue; const k = dist(p, grab); if (k < fd){ fd = k; first = p; } }
+  if (!first) return;
+  const R = first.team;
+  if (R === G.def && G.fumBy === G.off) G.fumText = true;
+  G.ball = {state:'held', carrier:first}; G.ballTeam = R; G.mode = 'run'; first.pickT = 0.3; first.stopped = true;
+  if (isHuman(R)) G.ctl = {p:first, pending: !isCtl(first)};
+  else { const hum = 1-R; if (isHuman(hum) && !(G.ctl && !G.ctl.pending && G.ctl.p.team === hum)) G.ctl = {p: nearestOf(G.all.filter(p => p.team === hum), first), pending:true}; }
+  if (G.all.some(o => o.team !== R && dist(o, grab) <= 1)){ sfx('tackle'); return ballDeadFor(R, first.x); }   // both teams there: recovered, and tackled right away
+}
 function spotText(){
   const fromOwn = Math.round((G.los - (G.poss===0?10:110)) * dirOf(G.poss));
   return fromOwn < 50 ? 'OWN '+fromOwn : fromOwn === 50 ? 'MIDFIELD' : 'OPP '+(100-fromOwn);
@@ -1032,13 +1240,24 @@ function endPlay(type, info){
   G.phase = 'dead'; G.t = 0; G.lastPlay = type;
   const bc = G.ball && G.ball.state === 'held' ? G.ball.carrier : null;
   if (type === 'TD'){ G.tdBy = bc; G.tdOff = G.off; } else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
-  if (type === 'TD') sfx('cheer'); else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
+  if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
+  /* whose good play was it? (user, v0.61) Offense: touchdown, first down, 5+ yards. Defense: sack, interception, fumble recovered
+     from the other team, safety, or holding the gain under 2 yards (not a first down or TD). An incomplete pass counts for nobody. */
+  let good = null;
+  if (type === 'TD') good = info.team;
+  else if (type === 'SAFETY') good = def;
+  else if (type === 'INTDOWN' && !info.text) good = def;
+  else if (type === 'DOWN'){ if (info.sack) good = def;
+    else { const gain = (clamp(info.x, 10.5, 109.5) - G.los)*d; if (gain >= G.toGo - 0.01 || gain >= 5) good = off; else if (gain < 2) good = def; } }
+  crowdReact(good, type === 'TD');
+  if (!DEMO && Math.random() < 0.25) playRiff();   // stadium music on about 1 in 4 dead balls
   switch(type){
     case 'TD': { const T = info.team; G.score[T] += 7; G.stats.td[T]++; if (T === def) G.stats.pick6++;
       text = 'TOUCHDOWN!'; sub = TEAM[T].name+' +7'; scored = true; changePoss(1-T, own20(1-T)); break; }
     case 'SAFETY': G.stats.safety++; G.score[def] += 2; text = 'SAFETY!'; sub = TEAM[def].name+' +2'; scored = true;
       changePoss(def, own20(def)); break;
-    case 'INTDOWN': { text = 'INTERCEPTED!';
+    case 'POSS': text = info.text; sub = 'TOUCHBACK'; changePoss(info.team, own20(info.team)); break;
+    case 'INTDOWN': { text = info.text || (G.fumText ? 'FUMBLE RECOVERED' : 'INTERCEPTED!');
       let x = info.x; if (x == null){ x = own20(def); sub = 'TOUCHBACK'; } else x = clamp(x, 10.5, 109.5);
       changePoss(def, x); sub = sub || TEAM[def].name+' BALL'; break; }
     case 'INC': G.stats.inc++; text = info.text; sub = advanceDowns(0); break;
@@ -1081,6 +1300,9 @@ function allGuessedCheck(){
 }
 // ---------- main update ----------
 function update(dt){
+  { const on = G && !DEMO && G.phase !== 'gameover';   // crowd (user, v0.61): murmur all game, a little quieter while the ball is live
+    murmurLevel(on ? (G.phase === 'live' ? 0.08 : 0.12) : 0);
+    chantTick(on && !G.paused && G.down === 3 && G.def === G.home && ['formation','hwalk','routes','guess','align','presnap'].includes(G.phase)); }
   if (!G || G.paused) { input.btnEdge = input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null; return; }
   if (G.banner){ G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
   if (G.catchFlash) G.catchFlash = Math.max(0, G.catchFlash - dt);
@@ -1115,7 +1337,7 @@ function update(dt){
   // camera
   let fx = G.los;
   if (G.phase === 'dead' && G.tdBy) fx = G.tdBy.x;   // camera stays on the touchdown (user, v0.39)
-  if (G.phase === 'live'){ const b = G.ball; fx = b.state==='air' ? b.sx+(b.tx-b.sx)*Math.min(1,b.t/b.T) : b.carrier.x + (G.mode==='pass' ? G.d*4 : 0); }
+  if (G.phase === 'live'){ const b = G.ball; fx = b.state==='air' ? b.sx+(b.tx-b.sx)*Math.min(1,b.t/b.T) : b.state==='snap' ? G.qb.x + G.d*4 : b.state==='loose' ? b.x : b.carrier.x + (G.mode==='pass' ? G.d*4 : 0); }
   else if (G.phase === 'formation' || G.phase === 'hwalk' || G.phase === 'routes' || G.phase === 'guess') fx = G.los;
   G.camX += (fx - G.camX) * Math.min(1, dt*4);
   input.btnEdge = false; input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null;
@@ -1127,17 +1349,20 @@ function controlledPlayer(){
   if (!G || G.phase === 'gameover') return null;
   if (isHuman(G.def)) return (G.ctl && !G.ctl.pending && G.ctl.p.team === G.def) ? G.ctl.p : G.lb;   // ring on your linebacker from the start; moves only when you take over another defender (user, v0.24)
   if (G.phase !== 'live') return null;
-  if (G.mode === 'run') return G.ctl ? G.ctl.p : null;
+  if (G.mode === 'run' || G.mode === 'loose') return G.ctl ? G.ctl.p : null;
   if (isHuman(G.def)) return G.lb;
   if (isHuman(G.off) && G.mode === 'pass') return G.qb;
   return null;
 }
+/* the button always shows what it would do right now (user, v0.68) */
 function btnLabel(){
   if (!G) return '';
   if (hornAllowed()) return 'HORN';
-  if (isHuman(G.off) && ['formation','hwalk','guess','routes'].includes(G.phase)) return 'RESET';   // pre-play decisions (user, v0.36)
+  if (isHuman(G.off) && ['hwalk','guess','routes'].includes(G.phase)) return 'RESET';   // pre-play decisions (user, v0.36)
+  if (G.phase==='guess' && isHuman(G.def) && G.waiting) return 'BLITZ';   // button alone = this DB blitzes (user, v0.61)
   if (G.phase==='presnap' && isHuman(G.off)) return 'HIKE';
-  if (G.phase==='live' && isHuman(G.off) && G.ball.state==='held' && G.ball.carrier===G.qb) return 'THROW';
+  if (G.phase==='live' && isHuman(G.off) && G.mode==='pass' && G.ball.state==='held' && G.ball.carrier===G.qb) return 'THROW';
+  if (diveDir(diverNow())) return 'DIVE';
   return '';
 }
 function promptText(){
@@ -1151,6 +1376,7 @@ function promptText(){
     case 'guess': return defH ? (G.waiting ? `GUESS:  ${fwd} STREAK   ${back} HOOK   ↑ / ↓ 6-YD OUT / IN` : '') : '';
     case 'presnap': return '';
     case 'live':
+      if (G.mode === 'loose') return G.ctl && G.ctl.pending ? 'PRESS A DIRECTION TO TAKE OVER' : '';
       if (G.mode === 'run' && G.ctl){
         const mine = G.ctl.p.team === G.ballTeam;
         if (G.ctl.pending) return 'PRESS A DIRECTION TO TAKE OVER ' + (mine ? 'THE BALL CARRIER' : 'THE TACKLER');
@@ -1248,6 +1474,16 @@ const POSES = {
   lying:   () => ({lean:0.0,  hip:0.50, legs:[{t:-0.1,k:0.2},{t:0.15,k:0.4}], arms:[{u:2.6,e:0.2},{u:1.6,e:0.3}]}),
   cheer:   (t) => ({lean:-0.05, hip:0.50 + 0.04*Math.abs(Math.sin(t*9)), legs:[{t:-0.12,k:0.2},{t:0.12,k:0.2}], arms:[{u:2.95,e:0.1},{u:2.85,e:0.15}]})
 };
+/* tackled (user, v0.64): over the same 0.4 s fall, he drops to his knees first (first half), then falls forward onto his face */
+function tackleFall(f){
+  const sm = x => x*x*(3-2*x), lerp = (a, b, w) => a + (b-a)*w;
+  const st = POSES.stand(), kn = {lean:0.25, hip:0.27, legs:[{t:0.08,k:1.62},{t:-0.04,k:1.55}], arms:[{u:0.6,e:0.3},{u:0.5,e:0.35}]};
+  const pr = {lean:1.5, hip:0.1, legs:[{t:-1.42,k:0.05},{t:-1.5,k:0.1}], arms:[{u:1.65,e:0.1},{u:1.5,e:0.15}]};
+  const mix = (a, b, w) => ({lean:lerp(a.lean,b.lean,w), hip:lerp(a.hip,b.hip,w),
+    legs:a.legs.map((g,i) => ({t:lerp(g.t,b.legs[i].t,w), k:lerp(g.k,b.legs[i].k,w)})),
+    arms:a.arms.map((g,i) => ({u:lerp(g.u,b.arms[i].u,w), e:lerp(g.e,b.arms[i].e,w)}))});
+  return f < 0.5 ? mix(st, kn, sm(f/0.5)) : {...mix(kn, pr, sm((f-0.5)/0.5)), wide: sm((f-0.5)/0.5)};
+}
 /* touchdown celebrations: arms up with a hop, raise the roof, or a fist pump (picked by jersey number) */
 function celebrate(p, t){
   const kind = p === G.tdBy ? 0 : (p.num||0) % 3, ph = t*7 + (p.num||0);
@@ -1263,9 +1499,19 @@ function poseFor(p, moving, spd){
   if (p.grappled && G.phase === 'live') return p === (G.grapple && G.grapple.c)
     ? {...runPose(p.anim||0, 0.35, 0.45), arms:[{u:0.6,e:1.6},{u:0.35,e:2.0}]}           // carrier straining forward
     : {lean:0.85, hip:0.42, legs:[{t:0.5,k:1.0},{t:-0.2,k:0.6}], arms:[{u:1.5,e:0.6},{u:1.3,e:0.8}]};   // tackler wrapped up
-  if (p.dive) return {lean:1.45, hip:0.42, legs:[{t:-1.0,k:0.3},{t:-0.7,k:0.2}], arms:[{u:1.55,e:0.05},{u:1.45,e:0.1}]};   // diving
+  if (p.dive){   // diving. The first moment is a wind-up (bent over, arms swung back), then he springs out flat (user, v0.61); the dive's timing is unchanged
+    const flat = {lean:1.45, hip:0.42, legs:[{t:-1.0,k:0.3},{t:-0.7,k:0.2}], arms:[{u:1.55,e:0.05},{u:1.45,e:0.1}]};
+    const crouch = {lean:0.75, hip:0.36, legs:[{t:0.55,k:1.25},{t:0.25,k:1.0}], arms:[{u:-1.35,e:0.15},{u:-1.2,e:0.2}]};
+    const w = clamp01((p.dive.t - 0.07)/0.06), L = (a, b) => a + (b-a)*w;
+    return {lean:L(crouch.lean, flat.lean), hip:L(crouch.hip, flat.hip),
+      legs:crouch.legs.map((g,i) => ({t:L(g.t, flat.legs[i].t), k:L(g.k, flat.legs[i].k)})),
+      arms:crouch.arms.map((g,i) => ({u:L(g.u, flat.arms[i].u), e:L(g.e, flat.arms[i].e)}))}; }
+  if (p.fallT > 0){ const f = 1 - p.fallT/0.4;   // fumbler going down: the 0.4 s fall, face first
+    return tackleFall(f); }
+  if (p.pickT > 0 && G.phase === 'live') return {lean:1.0, hip:0.4, legs:[{t:0.55,k:1.3},{t:-0.25,k:0.7}], arms:[{u:0.9,e:0.15},{u:0.75,e:0.2}]};   // bending down to scoop up the fumble
   if (p.downT > 0){   // after a dive: 0.1 s flat on the ground, then a 0.4 s get-up (user, v0.52)
     const el = 0.5 - p.downT, g = Math.max(0, Math.min(1, (el - 0.1)/0.4));
+    if (p.proneUp) return tackleFall(1 - g);   // a tackled fumbler gets up the way he went down: knees, then feet
     if (g <= 0) return {...POSES.lying(), lying:true, dove:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]};
     const kneel = Math.sin(Math.PI*g);   // knees come up under him halfway through, then straighten
     return {lean:0.3*(1-g), hip:0.5 - 0.12*kneel, legs:[{t:0.6*kneel,k:1.6*kneel+0.15},{t:0.2*kneel,k:1.2*kneel+0.15}],
@@ -1273,7 +1519,7 @@ function poseFor(p, moving, spd){
   }
   if (G.phase === 'dead' || G.phase === 'gameover'){
     if (p === G.downed){ const f = Math.min(1, (performance.now() - (G.downAt||0))/400);
-      return f < 1 ? {...POSES.stand(), lying:true, fall:f, arms:[{u:1.2+1.4*f,e:0.3},{u:0.8+0.8*f,e:0.4}]} : {...POSES.lying(), lying:true}; }
+      return tackleFall(f); }
     if (G.tdBy && p.team === G.tdBy.team) return celebrate(p, performance.now()/1000);   // the scoring team celebrates (user, v0.39)
   }
   if (G.phase === 'presnap' || (G.phase === 'align' && !moving)){
@@ -1307,7 +1553,7 @@ function limb(x1, y1, x2, y2, w, col){
 }
 function drawAthlete(p, x, y, dirX, pose, T){
   const S = FIG, skin = SKIN[p.skin||0], shade = c => colMix(c, -0.28);
-  const jersey = T.col, pants = colMix(T.col, -0.12), trim = T.helm, sock = T.helm, glove = T.helm;
+  const jersey = T.col, pants = T.pants, stripe = T.col, sleeve = T.sec, sock = T.sec, glove = T.sec, beltCol = T.sec, shoe = T.col;   // uniform colors (user, v0.62)
   ctx.save(); ctx.translate(x, y);
   if (pose.lying){   // going down: a 0.4 s fall from upright to prone (user, v0.38)
     const f = pose.fall == null ? 1 : pose.fall, e = f*f*(3-2*f);
@@ -1326,17 +1572,17 @@ function drawAthlete(p, x, y, dirX, pose, T){
   const drawLeg = (l, far) => { const q = legPts(l), f = far ? shade : (c => c);
     const mid = {x:(hip.x+q.knee.x)/2, y:(hip.y+q.knee.y)/2};
     limb(hip.x, hip.y, q.knee.x, q.knee.y, 0.13*S, f(pants));
-    limb(mid.x, mid.y, q.knee.x, q.knee.y, 0.03*S, f(trim));                       // pant stripe
+    limb(mid.x, mid.y, q.knee.x, q.knee.y, 0.03*S, f(stripe));                     // pant stripe
     limb(q.knee.x, q.knee.y, q.ank.x, q.ank.y, 0.085*S, f(sock));
     const fa = Math.max(-0.6, Math.min(0.6, (q.a2)*0.5));                          // cleat
     ctx.save(); ctx.translate(q.ank.x, q.ank.y); ctx.rotate(-fa);
-    ctx.fillStyle = far ? '#1c1c1c' : '#2a2a2a'; ctx.strokeStyle = OUT; ctx.lineWidth = 1.2;
+    ctx.fillStyle = f(shoe); ctx.strokeStyle = OUT; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.moveTo(-0.04*S, -0.03*S); ctx.lineTo(0.11*S, -0.01*S); ctx.quadraticCurveTo(0.13*S, 0.03*S, 0.09*S, 0.035*S); ctx.lineTo(-0.045*S, 0.035*S); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore(); };
   const drawArm = (a, far) => { const q = armPts(a), f = far ? shade : (c => c);
     const sl = {x:sh.x+(q.el.x-sh.x)*0.55, y:sh.y+(q.el.y-sh.y)*0.55};
     limb(sh.x, sh.y, q.el.x, q.el.y, 0.075*S, f(skin));
-    limb(sh.x, sh.y, sl.x, sl.y, 0.1*S, f(jersey));                                 // sleeve
+    limb(sh.x, sh.y, sl.x, sl.y, 0.1*S, f(sleeve));                                 // sleeve
     limb(q.el.x, q.el.y, q.hand.x, q.hand.y, 0.065*S, f(skin));
     ctx.fillStyle = f(glove); ctx.strokeStyle = OUT; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(q.hand.x, q.hand.y, 0.045*S, 0, 7); ctx.fill(); ctx.stroke();
     return q.hand; };
@@ -1353,12 +1599,12 @@ function drawAthlete(p, x, y, dirX, pose, T){
   const pt = P(hip, 0.36, 0.0); ctx.quadraticCurveTo(pt.x, pt.y, sb.x, sb.y); ctx.closePath(); ctx.fill(); ctx.stroke();
   const pad = P(hip, 0.30, 0.0);
   ctx.beginPath(); ctx.ellipse(pad.x, pad.y, 0.155*S, 0.075*S, pose.lean, Math.PI, 2*Math.PI); ctx.fill(); ctx.stroke();
-  const belt = P(hip, 0.055, 0); limb(P(hip,0.055,-0.1).x, P(hip,0.055,-0.1).y, P(hip,0.055,0.09).x, P(hip,0.055,0.09).y, 0.035*S, trim);
+  const belt = P(hip, 0.055, 0); limb(P(hip,0.055,-0.1).x, P(hip,0.055,-0.1).y, P(hip,0.055,0.09).x, P(hip,0.055,0.09).y, 0.035*S, beltCol);
   // jersey number (drawn unmirrored)
   const nc = P(hip, 0.17, -0.01);
   ctx.save(); ctx.translate(nc.x, nc.y); ctx.scale(dirX, 1); ctx.rotate(dirX*pose.lean);
   ctx.font = `800 ${Math.round(0.15*S)}px "Archivo Narrow","Arial Narrow",sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.lineWidth = 2; ctx.strokeStyle = colMix(T.col, -0.5); ctx.strokeText(String(p.num||''), 0, 0); ctx.fillStyle = T.ink; ctx.fillText(String(p.num||''), 0, 0);
+  ctx.lineWidth = 2; ctx.strokeStyle = colMix(T.col, -0.5); ctx.strokeText(String(p.num||''), 0, 0); ctx.fillStyle = T.sec; ctx.fillText(String(p.num||''), 0, 0);
   ctx.restore();
   // neck + helmet
   limb(sh.x, sh.y, head.x, head.y, 0.07*S, skin);
@@ -1370,9 +1616,10 @@ function drawAthlete(p, x, y, dirX, pose, T){
   ctx.strokeStyle = T.col; ctx.lineWidth = 0.28*hr; ctx.beginPath(); ctx.arc(0, 0, hr*0.84, -Math.PI*0.95, -Math.PI*0.12); ctx.stroke();   // stripe
   ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(-hr*0.15, -hr*0.45, hr*0.35, hr*0.18, -0.4, 0, 7); ctx.fill();  // shine
   ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(-hr*0.05, hr*0.15, hr*0.13, 0, 7); ctx.fill();                                     // ear hole
-  ctx.strokeStyle = '#b8c0c8'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';                                                         // facemask
+  ctx.lineCap = 'round';                                                                                                          // facemask (secondary color, dark edge so it shows on any helmet)
   ctx.beginPath(); ctx.moveTo(hr*0.55, hr*0.05); ctx.lineTo(hr*1.2, hr*0.12); ctx.lineTo(hr*1.12, hr*0.85); ctx.lineTo(hr*0.45, hr*0.8);
-  ctx.moveTo(hr*0.6, hr*0.45); ctx.lineTo(hr*1.16, hr*0.48); ctx.stroke();
+  ctx.moveTo(hr*0.6, hr*0.45); ctx.lineTo(hr*1.16, hr*0.48);
+  ctx.strokeStyle = OUT; ctx.lineWidth = 2.6; ctx.stroke(); ctx.strokeStyle = T.sec; ctx.lineWidth = 1.6; ctx.stroke();
   ctx.restore();
   const hand = drawArm(pose.arms[1], false);
   ctx.restore();
@@ -1395,13 +1642,13 @@ function drawPlayer(p, mark){
      The linebacker always faces the way he's running. (user, v0.43) */
   if (p.role === 'DB' && G.phase === 'live' && !p.turned){
     const w = p.cover;
-    if (G.mode === 'run' || !w || (w.x - p.x)*G.d >= -0.5) p.turned = true;   // his receiver has reached him
+    if (G.mode === 'run' || G.mode === 'loose' || !w || (w.x - p.x)*G.d >= -0.5) p.turned = true;   // his receiver has reached him
     else if (Math.sign(dx) === G.d && Math.abs(dx) > 1e-4){ dirX = -G.d; p.back = true; }
   }
   if (!moving && G.phase === 'presnap') dirX = p.team === G.off ? G.d : -G.d;
   p.facing = dirX;
   const pose = poseFor(p, moving, p.spd);
-  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y, FIG*(pose.lying?0.5:0.24), FIG*0.06, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y, FIG*(pose.lying ? 0.5 : 0.24 + 0.26*(pose.wide||0)), FIG*0.06, 0, 0, 7); ctx.fill();
   if (mark && !(mark.blink && (Math.floor(performance.now()/180) % 2))){
     ctx.strokeStyle = mark.c; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(x, y, FIG*0.34, FIG*0.09, 0, 0, 7); ctx.stroke();
     ctx.fillStyle = mark.c; ctx.beginPath(); ctx.moveTo(x-7, y-FIG-14); ctx.lineTo(x+7, y-FIG-14); ctx.lineTo(x, y-FIG-5); ctx.fill();
@@ -1411,6 +1658,13 @@ function drawPlayer(p, mark){
     const a = performance.now()/60; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
     for (let j=0;j<5;j++){ const t = a + j*1.256; ctx.beginPath(); ctx.moveTo(x + dirX*FIG*0.2 + Math.cos(t)*6, y-FIG*0.6 + Math.sin(t)*6); ctx.lineTo(x + dirX*FIG*0.2 + Math.cos(t)*11, y-FIG*0.6 + Math.sin(t)*11); ctx.stroke(); }
   }
+}
+const BALL_PX = 14, BALL_LEN_YD = BALL_PX/SX;   // the ball as drawn: 14 px long, about 1/3 yard (11-12 inches)
+/* how far (yards) the front of a player's helmet/facemask sits ahead of his feet in a given pose */
+function helmetFrontYd(pose){
+  const S = FIG, hip = -pose.hip*S, upx = Math.sin(pose.lean), nx = Math.cos(pose.lean), hr = 0.11*S, r = pose.lean*0.5;
+  const headX = upx*0.45*S + nx*0.035*S, maskX = hr*1.2*Math.cos(r) - hr*0.12*Math.sin(r), shellX = hr*Math.cos(r);
+  return (headX + Math.max(maskX, shellX)) / SX;
 }
 function drawFootball(px, py, ang, len){
   ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
@@ -1424,6 +1678,16 @@ function drawBall(){
   const b = G.ball;
   if (b.state === 'held'){ const c = b.carrier; if (!c.hand) return;
     drawFootball(c.hand.x + (c.facing||1)*2, c.hand.y, (c.facing||1) > 0 ? -0.3 : Math.PI+0.3, 7); return; }
+  if (b.state === 'loose'){   // a fumble bouncing / lying on the turf
+    const px = X(b.x), py = Y(clamp(b.y, 0, FW)), lift = (b.h + 0.12)*SY*0.9;
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(px, py, 6, 2.5, 0, 0, 7); ctx.fill();
+    drawFootball(px, py - lift, b.left >= 0 ? b.t*14 : 0.15, 7); return; }
+  if (b.state === 'spot'){   // on the line, at the center's hands
+    drawFootball(X(G.los), Y(MID) - 2, 0, BALL_PX/2); return; }
+  if (b.state === 'snap'){   // flying back to the shotgun QB, rising from the turf to his hands
+    const f = 1 - Math.min(1, dist(b, G.qb)/b.d0), px = X(b.x), py = Y(b.y), lift = 2 + f*FIG*0.42;
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(px, py, 6, 2.5, 0, 0, 7); ctx.fill();
+    drawFootball(px, py - lift, -G.d*0.4, BALL_PX/2); return; }
   if (b.state !== 'air') return;
   const t = Math.min(1, b.t/b.T), x = b.sx+(b.tx-b.sx)*t, y = b.sy+(b.ty-b.sy)*t, h = b.h*4*t*(1-t);
   const px = X(x), py = Y(y), lift = (h + 0.75)*SY*0.9;
@@ -1498,6 +1762,7 @@ function draw(){
   if (G.phase !== 'gameover'){
     const fd = G.los + G.d*G.toGo;
     drawPin(G.los, C.white);
+    ctx.fillStyle = 'rgba(40,110,255,0.85)'; ctx.fillRect(X(G.los)-2.5, FIELD_TOP, 5, FIELD_PX);   // TV-style blue line of scrimmage, moves to each new down's spot (user, v0.60)
     if (fd > 10 && fd < 110) drawPin(fd, C.pinBlue);
     if (fd > 10 && fd < 110){   // TV-style yellow first-down line across the field, under the players (user, v0.53)
       ctx.fillStyle = 'rgba(255,214,0,0.85)'; ctx.fillRect(X(fd)-2.5, FIELD_TOP, 5, FIELD_PX); }
@@ -1505,7 +1770,7 @@ function draw(){
   // route previews (only your own calls)
   const pre = ['routes','guess','align','presnap'].includes(G.phase);
   if (pre && isHuman(G.off)) for (const w of G.wrs) if (w.route) drawPath(previewPath(w.route, w.x, w.y, G.d), 'rgba(255,230,90,.85)', false);
-  if (pre && isHuman(G.def)) for (const b of G.dbs) if (b.guess) drawPath(fitOnScreen(previewPath(b.guess, b.x, b.y, G.d)), 'rgba(255,140,120,.85)', true);
+  if (pre && isHuman(G.def)) for (const b of G.dbs) if (b.guess && b.guess !== 'blitz') drawPath(fitOnScreen(previewPath(b.guess, b.x, b.y, G.d)), 'rgba(255,140,120,.85)', true);
   const ctl = controlledPlayer();
   let visitTarget = null;
   if (G.phase==='routes' && G.waiting && isHuman(G.off)) visitTarget = G.wrs[G.visit];
@@ -1513,7 +1778,7 @@ function draw(){
   if (G.phase !== 'gameover') drawDownBox();
   const showKeys = G.phase === 'presnap' || G.phase === 'live';
   if (showKeys) drawThrowBadges(0);
-  const caughtOrPicked = G.mode === 'run' && G.ball.state === 'held' && G.ball.carrier !== G.qb;   // gone after a catch or interception (user, v0.25)
+  const caughtOrPicked = G.mode === 'loose' || G.mode === 'run' && G.ball.state === 'held' && G.ball.carrier !== G.qb;   // gone after a catch or interception (user, v0.25)
   if (G.phase === 'live' && !caughtOrPicked) for (const w of G.wrs){   // dashed red ring: a DB is locked onto this receiver's route (user, v0.24)
     const db = G.dbs.find(b => b.cover === w); if (!db || db.mode !== 'mirror') continue;
     ctx.save(); ctx.strokeStyle = '#e0413b'; ctx.lineWidth = 2.5; ctx.setLineDash([5,4]);
@@ -1527,22 +1792,18 @@ function draw(){
   if (G.phase !== 'gameover') drawBall();
   if (showKeys) drawThrowBadges(1);
   drawHUD();
-  const pt = promptText();
-  if (pt){
-    ctx.font = '700 14px "Archivo Narrow","Arial Narrow",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const tw = ctx.measureText(pt).width + 22, py = FIELD_TOP + 19;
-    ctx.fillStyle = 'rgba(10,22,16,.72)'; ctx.fillRect(W/2-tw/2, py-11, tw, 22);
-    ctx.fillStyle = '#ffd23f'; ctx.fillText(pt, W/2, py);
-  }
+  /* on-field prompts removed (user, v0.61). Messages show over the scoreboard for a moment instead of across the field. */
   if (G.banner){
     const bn = G.banner, a = Math.min(1, bn.t*6, Math.max(0,(bn.dur-bn.t)*4));
-    ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const big = 44, by = FIELD_TOP + FIELD_PX*0.42;
-    ctx.font = `400 ${big}px "Bungee","Arial Black",sans-serif`;
-    ctx.lineWidth = 6; ctx.strokeStyle = '#000'; ctx.strokeText(bn.text, W/2, by);
-    ctx.fillStyle = '#fff'; ctx.fillText(bn.text, W/2, by);
-    if (bn.sub){ ctx.font = `400 20px "Bungee","Arial Black",sans-serif`;
-      ctx.lineWidth = 4; ctx.strokeText(bn.sub, W/2, by+36); ctx.fillStyle = '#ffd23f'; ctx.fillText(bn.sub, W/2, by+36); }
+    ctx.globalAlpha = a; ctx.fillStyle = C.hud; ctx.fillRect(0, 0, W, HUD_H);
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.font = '400 24px "Bungee","Arial Black",sans-serif'; const tw = ctx.measureText(bn.text).width;
+    ctx.font = '400 16px "Bungee","Arial Black",sans-serif'; const sw = bn.sub ? ctx.measureText(bn.sub).width + 18 : 0;
+    let x = W/2 - (tw + sw)/2; const y = HUD_H/2 + 1;
+    ctx.font = '400 24px "Bungee","Arial Black",sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = '#000';
+    ctx.strokeText(bn.text, x, y); ctx.fillStyle = '#fff'; ctx.fillText(bn.text, x, y);
+    if (bn.sub){ x += tw + 18; ctx.font = '400 16px "Bungee","Arial Black",sans-serif'; ctx.lineWidth = 3;
+      ctx.strokeText(bn.sub, x, y); ctx.fillStyle = '#ffd23f'; ctx.fillText(bn.sub, x, y); }
     ctx.globalAlpha = 1;
   }
 }
@@ -1557,7 +1818,7 @@ function startGame(){
 /* v0.59 fix: switching apps drops Chrome out of full screen, and a page is only allowed to go back to full screen on a tap
    or key press. So while a game is going, the first tap or key press after coming back puts it in full screen again. */
 ['touchend','pointerup','keydown'].forEach(ev => addEventListener(ev, () => { if (G && !DEMO) goFull(); }, true));
-function toTitle(){ G = null; $('menu').hidden = true; $('forms').hidden = true; $('final').hidden = true; $('quit').hidden = true; $('title').hidden = false; btnEl.textContent = ''; }
+function toTitle(){ musicStop(); chantTick(false); murmurLevel(0); G = null; $('menu').hidden = true; $('forms').hidden = true; $('final').hidden = true; $('quit').hidden = true; $('title').hidden = false; btnEl.textContent = ''; }
 function showFinal(){
   const [a,b] = G.score;
   $('fh').textContent = a===b ? 'Tie Game' : a>b ? 'You Win!' : 'Final';
@@ -1570,7 +1831,6 @@ $('optrecv').addEventListener('click', () => { OPEN.kick = false; saveOpen(); sh
 showOpen();
 $('start').addEventListener('click', () => {
   goFull(); audioOn();
-  if (!myKit){ kpOpen(true, startGame); return; }   // a new player picks his uniforms first, like baseball
   startGame();
 });
 $('howb').addEventListener('click', () => { $('title').hidden = true; $('how').hidden = false; });
@@ -1582,7 +1842,14 @@ $('again').addEventListener('click', () => { audioOn(); startGame(); });
 $('fmenu').addEventListener('click', toTitle);
 
 // volume sliders (title screen and in-game menu), saved on this phone
-function syncVol(){ document.querySelectorAll('.vfx').forEach(r => r.value = Math.round(VOL.fx*100)); document.querySelectorAll('.vvoice').forEach(r => r.value = Math.round(VOL.voice*100)); }
+function syncVol(){ document.querySelectorAll('.vfx').forEach(r => r.value = Math.round(VOL.fx*100)); document.querySelectorAll('.vvoice').forEach(r => r.value = Math.round(VOL.voice*100));
+  document.querySelectorAll('.vcrowd').forEach(r => r.value = Math.round(VOL.crowd*100)); document.querySelectorAll('.vmusic').forEach(r => r.value = Math.round(VOL.music*100)); }
+document.querySelectorAll('.vcrowd').forEach(r => r.addEventListener('input', () => { VOL.crowd = r.value/100; audioOn(); if (CROWD) CROWD.gain.value = VOL.crowd; saveVol(); syncVol(); }));
+document.querySelectorAll('.vmusic').forEach(r => r.addEventListener('input', () => { VOL.music = r.value/100; audioOn(); if (MUSIC) MUSIC.gain.value = VOL.music; saveVol(); syncVol(); }));
+function showSide(){ $('sidehome').setAttribute('aria-pressed', SIDE.home); $('sideaway').setAttribute('aria-pressed', !SIDE.home); }
+$('sidehome').addEventListener('click', () => { SIDE.home = true; saveSide(); showSide(); });
+$('sideaway').addEventListener('click', () => { SIDE.home = false; saveSide(); showSide(); });
+showSide();
 document.querySelectorAll('.vfx').forEach(r => r.addEventListener('input', () => { VOL.fx = r.value/100; audioOn(); if (FX) FX.gain.value = VOL.fx; saveVol(); syncVol(); }));
 document.querySelectorAll('.vvoice').forEach(r => r.addEventListener('input', () => { VOL.voice = r.value/100; saveVol(); syncVol(); }));
 syncVol();
