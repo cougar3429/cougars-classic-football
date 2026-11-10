@@ -90,9 +90,9 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .sws button { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--ink); cursor: pointer; padding: 0; box-shadow: 0 3px 0 var(--ink); }
 .sws button[aria-pressed="true"] { outline: 3px solid var(--gold); outline-offset: 2px; }
 
-.vols { display: flex; gap: 14px; align-items: center; }
+.vols { display: flex; gap: 12px; align-items: center; }
 .vols label { display: flex; align-items: center; gap: 8px; font: 700 12px var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; }
-.vols input[type=range] { width: 84px; accent-color: var(--gold); }
+.vols input[type=range] { width: 66px; accent-color: var(--gold); }
 #rotate { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #12301d; color: var(--cream); text-align: center; padding: 24px; font-size: 18px; z-index: 50; }
 #rotate b { font-family: var(--font-display); font-weight: 400; font-size: 24px; color: var(--gold); }
 @media (orientation: portrait) and (max-width: 900px) { #rotate { display: flex; } }
@@ -128,9 +128,9 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
       <div class="row"><label>Opening</label><div class="seg" role="group" aria-label="Kick or receive"><button type="button" id="optkick" aria-pressed="false">KICK</button><button type="button" id="optrecv" aria-pressed="true">RECEIVE</button></div></div>
       <div class="row"><label>Controls</label><div class="seg" role="group" aria-label="Move the controls"><button type="button" id="ctlmove">MOVE</button><button type="button" id="ctlreset">RESET</button></div></div>
     </div>
-    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label></div>
+    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.70</small>
+    <small id="ver">Version 0.75</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -168,7 +168,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     <p>The score will be lost. The game is paused while you decide.</p>
     <div class="row"><button class="big-btn" id="qyes" type="button">QUIT TO MENU</button><button class="big-btn" id="qno" type="button" style="background:#2f6fe0">KEEP PLAYING</button></div>
     <button class="big-btn alt" id="qmove" type="button">MOVE CONTROLS</button>
-    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label></div>
+    <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
   </section>
 
   <section class="screen" id="final" hidden>
@@ -384,10 +384,10 @@ const SFX = {
   },
   whistle(){   // referee's pea whistle: the runner is down
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), trem = AC.createOscillator(), tg = AC.createGain();
-    o.type = 'sine'; o.frequency.setValueAtTime(2750, t); trem.frequency.value = 28; tg.gain.value = 120; trem.connect(tg); tg.connect(o.frequency);
+    o.type = 'sine'; o.frequency.setValueAtTime(1375, t); trem.frequency.value = 28; tg.gain.value = 60;   // one octave lower (user, v0.75; was 2750 Hz) trem.connect(tg); tg.connect(o.frequency);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t+0.02); g.gain.setValueAtTime(0.14, t+0.42); g.gain.exponentialRampToValueAtTime(0.0001, t+0.55);   // half as loud (user, v0.61)
     o.connect(g); g.connect(FX); o.start(t); trem.start(t); o.stop(t+0.6); trem.stop(t+0.6);
-    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2800; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.025, 0.02);
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.025, 0.02);
   },
   tackle(){   // pads hitting + body on turf
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
@@ -568,11 +568,17 @@ const QUARTER_SEC = 15*60, CLOCK_SCALE = 5, BETWEEN_PLAYS = 40;
 const SLOW = 0.8;
 /* one running speed for every player (user, v0.27: "I never said to make players different speeds") */
 /* every speed up 15% twice (user, v0.65 and v0.67): running, linemen, walking, dives, and the ball (passes and snaps) */
-const FASTER = 1.15*1.15;   // +15% (v0.65), then another +15% (user, v0.67)
-const RUN = 3.5*SLOW*FASTER;
-const LINE = 2.3*FASTER;   // offensive and defensive linemen: 2.3 yards per second (user, v0.28), +15% (v0.65)
-const SPD = {walk:5*SLOW*FASTER, qb:RUN, wr:RUN, carrier:RUN, ol:LINE, db:RUN, dbChase:RUN, mirror:RUN, lb:RUN, dl:LINE, ball:17*SLOW*FASTER, dive:5*SLOW*1.15*FASTER};   // dives go 15% farther (user, v0.48)
-const ROLE_SPD = {DB:SPD.dbChase, LB:SPD.lb, DL:SPD.dl};
+const FASTER = 1.15*1.15*0.9;   // +15% (v0.65), another +15% (v0.67), then -10% (user, v0.71)
+/* game speed slider (user, v0.73): 50% to 150%, saved on this device. It scales every movement speed:
+   running, linemen, walking, dives, passes and snaps. Timers (blocks, falls, the clock) don't change. */
+const GSPEED = {v:1};
+try { const v = parseFloat(localStorage.getItem('ccf-speed')); if (v >= 0.5 && v <= 1.5) GSPEED.v = v; } catch (e) {}
+let RUN = 0, LINE = 0; const SPD = {};
+function applySpeed(){ const f = FASTER*GSPEED.v;
+  RUN = 3.5*SLOW*f;
+  LINE = 2.3*f;   // offensive and defensive linemen: 2.3 yards per second (user, v0.28), then the overall changes
+  Object.assign(SPD, {walk:5*SLOW*f, qb:RUN, wr:RUN, carrier:RUN, ol:LINE, db:RUN, dbChase:RUN, mirror:RUN, lb:RUN, dl:LINE, ball:17*SLOW*f, dive:5*SLOW*1.15*f}); }   // dives go 15% farther (user, v0.48)
+applySpeed();
 const ROUTES = ['up','down','streak','hook'];
 const FORMS = [{n:'TRIPS LEFT',L:3},{n:'2 LEFT 1 RIGHT',L:2},{n:'2 RIGHT 1 LEFT',L:1},{n:'TRIPS RIGHT',L:0}];
 const clamp = (v,a,b) => v<a?a:v>b?b:v;
@@ -696,7 +702,7 @@ function walkAll(dt){ let done = true;
   return done; }
 function visitStep(dt, visitor, list, center, human, assign, done){
   if (!human){   // the computer makes all its calls instantly — you never wait on it (user, v0.23)
-    for (; G.visit < list.length; G.visit++) assign(list[G.visit], (list === G.dbs && rnd() < 0.25) ? 'blitz' : ROUTES[rnd()*4|0]);   // each computer DB blitzes 25% of plays (user, v0.60)
+    for (; G.visit < list.length; G.visit++) assign(list[G.visit], (list === G.dbs && rnd() < 0.2) ? 'blitz' : ROUTES[rnd()*4|0]);   // each computer DB blitzes 20% of plays (user, v0.73; was 25%)
     G.wait = 0; G.waiting = false; return done();
   }
   const tgt = list[G.visit];
@@ -752,7 +758,7 @@ function snap(){
   G.phase = 'live'; G.mode = 'pass'; G.tapNoDir = false; G.liveT = 0; G.aimArmed = false; G.ctl = null; G.ballTeam = G.off; G.stats.plays++;
   G.cq = {think:0, scramble:false};
   G.fumText = null; musicStop(); chantTick(false);
-  for (const p of G.all){ p.fallT = 0; p.pickT = 0; p.hitBefore = false; p.proneUp = false; p.dvRange = false; p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; p.turned = false; }
+  for (const p of G.all){ p.fallT = 0; p.pickT = 0; p.hitBefore = false; p.proneUp = false; p.dvRolled = false; p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; p.turned = false; }
   G.grapple = null;
   for (const w of G.wrs){ w.wp = routeWaypoints(w.route, w.x, w.y, d); w.wpi = 0; w.stopped = false; }
   for (const b of G.dbs){
@@ -762,7 +768,9 @@ function snap(){
     else { b.mode = 'wrong'; b.wpi = 0;
       b.wp = routeWaypoints(b.guess, w.x, w.y, d).map(p => ({x:p.x+(b.x-w.x), y:p.y+(b.y-w.y)})); }
   }
-  for (const dl of G.dls){ dl.beatsFirst = rnd() < 0.1; dl.slip = null; }   // 10% of the time a defensive lineman avoids the initial block (user, v0.18)
+  for (const dl of G.dls){ dl.beatsFirst = rnd() < 0.1; dl.slip = null;
+    /* 25% of the time a defensive lineman rushes at a 45° angle, up or down, for his first 3 yards (user, v0.73) */
+    dl.angle = rnd() < 0.25 ? (rnd() < 0.5 ? -1 : 1) : 0; dl.start = {x:dl.x, y:dl.y}; }   // 10% of the time a defensive lineman avoids the initial block (user, v0.18)
   G.lb.plan = rnd() < 0.3 ? 'blitz' : 'hold';          // computer linebacker blitzes on 30% of plays, from the snap (user, v0.16)
   /* shotgun snap from the center (user, v0.63): the ball flies from the line to the QB at passing speed; he has it when it arrives */
   G.ball = {state:'snap', x:G.los, y:MID}; G.ball.d0 = Math.max(0.1, dist(G.ball, G.qb));
@@ -808,18 +816,26 @@ function diverNow(){
 function cpuDives(){
   const b = G.ball; if (b.state !== 'held') return;
   const c = b.carrier, T = c.team, me = controlledPlayer();
-  if (G.dvCarrier !== c){ G.dvCarrier = c; for (const p of G.all) p.dvRange = false; }
+  if (G.dvCarrier !== c){ G.dvCarrier = c; for (const p of G.all) p.dvRolled = false; }
   for (const p of G.all){
     if (p.team === T || (p === me && isHuman(p.team))) continue;
     if (p.role === 'OL' || p.role === 'DL') continue;                 // computer linemen never dive (user, v0.70)
-    if ((c.x - p.x)*dirOf(T) <= 0){ p.dvRange = false; continue; }    // only once the runner is past him and he's chasing (user, v0.70)
+    if ((c.x - p.x)*dirOf(T) <= 0) continue;    // only once the runner is past him and he's chasing (user, v0.70)
+    /* v0.74 fix: "in range" now means the dive actually gets to him, counting where he runs during the dive.
+       Before, it only looked at where he was when the dive started, so a chaser 2 yards behind dove and landed short. */
     const spd = SPD.dive*(p.boost ? 1.2 : 1);
-    if (dist(p,c) > spd*0.3 + TACKLE || p.dive || p.downT > 0 || p.fallT > 0 || p.blockedT > 0 || p.grappled){ if (dist(p,c) > spd*0.3 + TACKLE) p.dvRange = false; continue; }
+    let hitT = -1;   // aim at where he'll be at time t; keep the first aim that actually brings the diver into tackling contact
+    for (let k = 1; k <= 10 && hitT < 0; k++){ const t = 0.03*k, ax = c.x + c.vx*t - p.x, ay = c.y + c.vy*t - p.y, an = Math.hypot(ax,ay) || 1;
+      for (let j = 1; j <= 20; j++){ const tau = 0.015*j, dx = p.x + ax/an*spd*tau - (c.x + c.vx*tau), dy = p.y + ay/an*spd*tau - (c.y + c.vy*tau);
+        if (Math.hypot(dx,dy) < TACKLE*0.85){ hitT = t; break; } } }
+    if (hitT < 0 || p.dive || p.downT > 0 || p.fallT > 0 || p.blockedT > 0 || p.grappled) continue;
+    /* v0.74 fix: one 40% roll per defender per ball carrier. Before, it rolled again every time the runner slipped in
+       and out of range, which happened many times a second, so they dove far more than 40% of the time. */
     let go = false;
-    if (!p.dvRange){ p.dvRange = true; go = rnd() < 0.4; }
+    if (!p.dvRolled){ p.dvRolled = true; go = rnd() < 0.4; }
     if (!go && onlyChance(p, c)) go = true;
     if (!go) continue;
-    const t = Math.min(0.3, dist(p,c)/spd), vx = c.x + c.vx*t - p.x, vy = c.y + c.vy*t - p.y, n = Math.hypot(vx,vy) || 1;
+    const vx = c.x + c.vx*hitT - p.x, vy = c.y + c.vy*hitT - p.y, n = Math.hypot(vx,vy) || 1;
     p.proneUp = false; p.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; p.touchedInAir = false; if (vx) p.facing = Math.sign(vx);
   }
 }
@@ -991,6 +1007,10 @@ function cpuLB(dt){
   if (G.liveT >= 2) return moveToward(lb, ballSpot(), SPD.lb, dt);
   lb.vx = lb.vy = 0;
 }
+function dlRush(dl, target, dt){
+  if (dl.angle && dist(dl, dl.start) < 3) return moveToward(dl, {x:dl.x + G.d*5, y:dl.y + dl.angle*5}, SPD.dl, dt);
+  dl.angle = 0; return moveToward(dl, target, SPD.dl, dt);
+}
 function passStep(dt){
   const q = G.qb, d = G.d, b = G.ball;
   if (b.state === 'snap'){   // ball on its way back from the center; the QB waits for it
@@ -1002,7 +1022,7 @@ function passStep(dt){
   }
   for (const w of G.wrs) followRoute(w, dt);
   for (const db of G.dbs) cover(db, dt);
-  for (const dl of G.dls) moveToward(dl, q, SPD.dl, dt);                 // defensive linemen attack the ball carrier (user)
+  for (const dl of G.dls) dlRush(dl, q, dt);                 // defensive linemen attack the ball carrier (user)
   G.ols.forEach((o,i) => {                                               // offensive linemen step in front of them
     const dl = G.dls[i], k = dist(dl,q) || 1;
     moveToward(o, {x:dl.x+(q.x-dl.x)/k*0.45, y:dl.y+(q.y-dl.y)/k*0.45}, SPD.ol, dt);
@@ -1021,7 +1041,7 @@ function airStep(dt){
   for (const w of G.wrs){ if (w === b.target) moveToward(w, land, SPD.wr, dt); else followRoute(w, dt); }   // the targeted receiver always goes for the ball (user, v0.16)
   for (const db of G.dbs) cover(db, dt);
   const ballNow = airBallPos(b);
-  for (const dl of G.dls) moveToward(dl, ballNow, SPD.dl, dt);           // defensive linemen always attack the ball (user, v0.17)
+  for (const dl of G.dls) dlRush(dl, ballNow, dt);           // defensive linemen always attack the ball (user, v0.17)
   for (const o of G.ols){ o.vx = o.vy = 0; }
   G.qb.vx = G.qb.vy = 0;
   if (isHuman(G.def)) humanMove(G.lb, SPD.lb, dt); else cpuLB(dt);
@@ -1110,7 +1130,7 @@ function runStep(dt){
   for (const m of mates){ if (isCtl(m)) humanMove(m, roleSpd(m), dt); else blockAI(m, c, opp, dirT, dt); }
 }
 
-// ---------- blocks: both at half speed for 1 s. The same blocker can't block that player again until 2 s after the block ends;
+// ---------- blocks: both at half speed for 1.5 s (v0.72). The same blocker can't block that player again until 2 s after the block ends;
 //            a different blocker can block him as soon as he reaches him. ----------
 function doBlocks(){
   let blockers = [], targets = [];
@@ -1122,7 +1142,7 @@ function doBlocks(){
     if ((o.imm.get(b)||0) > 0 || dist(b,o) > BLOCK_R) continue;   // immune only to the player who just blocked him
     if (o.slip === b) continue;                                       // still in the contact he avoided
     if (o.beatsFirst){ o.beatsFirst = false; o.slip = b; o.spinT = 0.4; continue; }  // he avoids the initial block only (user, v0.20), with a spin move (user, v0.29)
-    o.slowT = 1.0; b.slowT = 1.0; o.blockedT = 1.0; b.blockedT = 1.0; o.imm.set(b, 3.0); G.stats.blocks++;   // both players are engaged in the block for 1 s; same blocker locked out until 2 s after it ends
+    o.slowT = 1.5; b.slowT = 1.5; o.blockedT = 1.5; b.blockedT = 1.5; o.imm.set(b, 3.5); G.stats.blocks++;   // both players are engaged in the block for 1.5 s (user, v0.72; was 1 s); same blocker locked out until 2 s after it ends
   }
 }
 function sim(dt){
@@ -1154,10 +1174,10 @@ function sim(dt){
   if ((c.x-goalX(T))*dirT >= 0) return endPlay('TD', {team:T});
   /* a diving ball carrier (user, v0.49/v0.51): a touch while he's airborne doesn't put him down, but he's down the moment
      he lands; a touch while he's on the ground (before he's back up) puts him down right there */
-  if (c.dive){ const o = G.all.find(o => o.team !== T && dist(o,c) < TACKLE);
+  if (c.dive){ const o = G.all.find(o => o.team !== T && !(o.blockedT > 0) && dist(o,c) < TACKLE);
     if (o){ if (!c.touchedInAir) c.touchDive = !!o.dive; c.touchedInAir = true; } return; }
   if (c.downT > 0){
-    const o = c.touchedInAir ? null : G.all.find(o => o.team !== T && dist(o,c) < TACKLE);
+    const o = c.touchedInAir ? null : G.all.find(o => o.team !== T && !(o.blockedT > 0) && dist(o,c) < TACKLE);
     if (c.touchedInAir || o){
       sfx('tackle');
       if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.2) return fumble(c);   // first contact was a dive: 20% fumble (user, v0.61)
@@ -1170,7 +1190,8 @@ function sim(dt){
   }
   /* tackles (user, v0.25): a 1-on-1 attempt is broken 20% of the time; a dive is never broken. After breaking a man's
      tackle, the ball carrier is immune to that man's tackle attempts for 2 seconds — except a dive. Two or more at once: tackled. */
-  const hitters = G.all.filter(o => o.team !== T && dist(o,c) < TACKLE && (o.dive || !((c.timm.get(o)||0) > 0)));
+  const hitters = G.all.filter(o => o.team !== T && !(o.blockedT > 0) && dist(o,c) < TACKLE &&   // a player engaged in a block can't tackle (user, v0.72)
+    (o.dive || !((c.timm.get(o)||0) > 0)));
   if (hitters.length){
     if (hitters.length === 1 && !hitters[0].dive) G.stats.v1 = (G.stats.v1||0) + 1; else G.stats.multi = (G.stats.multi||0) + 1;
     if (hitters.length === 1 && !hitters[0].dive && rnd() < 0.2){ c.timm.set(hitters[0], 2.0); c.spinT = 0.4; c.hitBefore = true;   // broken tackle: spin move (user, v0.30)
@@ -1879,6 +1900,9 @@ function syncVol(){ document.querySelectorAll('.vfx').forEach(r => r.value = Mat
   document.querySelectorAll('.vcrowd').forEach(r => r.value = Math.round(VOL.crowd*100)); document.querySelectorAll('.vmusic').forEach(r => r.value = Math.round(VOL.music*100)); }
 document.querySelectorAll('.vcrowd').forEach(r => r.addEventListener('input', () => { VOL.crowd = r.value/100; audioOn(); if (CROWD) CROWD.gain.value = VOL.crowd; saveVol(); syncVol(); }));
 document.querySelectorAll('.vmusic').forEach(r => r.addEventListener('input', () => { VOL.music = r.value/100; audioOn(); if (MUSIC) MUSIC.gain.value = VOL.music; saveVol(); syncVol(); }));
+document.querySelectorAll('.vspeed').forEach(r => r.addEventListener('input', () => { GSPEED.v = r.value/100; applySpeed();
+  try { localStorage.setItem('ccf-speed', String(GSPEED.v)); } catch (e) {} document.querySelectorAll('.vspeed').forEach(o => o.value = r.value); }));
+document.querySelectorAll('.vspeed').forEach(r => r.value = Math.round(GSPEED.v*100));
 function showSide(){ $('sidehome').setAttribute('aria-pressed', SIDE.home); $('sideaway').setAttribute('aria-pressed', !SIDE.home); }
 $('sidehome').addEventListener('click', () => { SIDE.home = true; saveSide(); showSide(); });
 $('sideaway').addEventListener('click', () => { SIDE.home = false; saveSide(); showSide(); });
