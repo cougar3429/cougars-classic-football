@@ -130,7 +130,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.85</small>
+    <small id="ver">Version 0.93</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -169,6 +169,12 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     <div class="row"><button class="big-btn" id="qyes" type="button">QUIT TO MENU</button><button class="big-btn" id="qno" type="button" style="background:#2f6fe0">KEEP PLAYING</button></div>
     <button class="big-btn alt" id="qmove" type="button">MOVE CONTROLS</button>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
+  </section>
+
+  <section class="screen" id="toss" hidden>
+    <h1>Overtime</h1>
+    <p>Tied after four quarters. You won the coin toss!</p>
+    <div class="row"><button class="big-btn" id="tossrecv" type="button">RECEIVE</button><button class="big-btn alt" id="tosskick" type="button">KICK</button></div>
   </section>
 
   <section class="screen" id="final" hidden>
@@ -384,7 +390,7 @@ const SFX = {
   },
   whistle(){   // referee's pea whistle: the runner is down
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), trem = AC.createOscillator(), tg = AC.createGain();
-    o.type = 'sine'; o.frequency.setValueAtTime(1375, t); trem.frequency.value = 28; tg.gain.value = 60;   // one octave lower (user, v0.75; was 2750 Hz) trem.connect(tg); tg.connect(o.frequency);
+    o.type = 'sine'; o.frequency.setValueAtTime(1375, t); trem.frequency.value = 28; tg.gain.value = 60; trem.connect(tg); tg.connect(o.frequency);   // one octave lower (user, v0.75; was 2750 Hz). v0.87 fix: the trill was cut off by a comment, which made it a plain beep
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t+0.02); g.gain.setValueAtTime(0.14, t+0.42); g.gain.exponentialRampToValueAtTime(0.0001, t+0.55);   // half as loud (user, v0.61)
     o.connect(g); g.connect(FX); o.start(t); trem.start(t); o.stop(t+0.6); trem.stop(t+0.6);
     const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.025, 0.02);
@@ -561,7 +567,8 @@ const HUMAN = 0, CPU = 1;
 const isHuman = t => !DEMO && t === HUMAN;
 const dirOf = t => t === 0 ? 1 : -1;            // team 0 (you) attacks right (+x)
 const goalX = t => t === 0 ? 110 : 10;          // goal line team t attacks
-const own20 = t => t === 0 ? 30 : 90;
+const own20 = t => t === 0 ? 30 : 90;   // touchbacks on interceptions and fumbles (NFL: the 20)
+const own35 = t => t === 0 ? 45 : 75;   // drives that start in place of a kickoff (NFL kickoff touchback, the 35) (user, v0.91)
 const QUARTER_SEC = 15*60, CLOCK_SCALE = 5, BETWEEN_PLAYS = 40;
 /* running speeds were cut in half (user, Nov 8, version 0.3) */
 /* every speed slowed another 20% (user, v0.25) */
@@ -601,7 +608,7 @@ function newGame(){
   G = {score:[0,0], quarter:1, clock:QUARTER_SEC, poss: DEMO ? (rnd()<.5?0:1) : (OPEN.kick ? 1 : 0), phase:'formation', t:0,
        camX:60, banner:null, stats:{plays:0,int:0,inc:0,sack:0,td:[0,0],comp:0,pick6:0,qbrun:0,blocks:0,safety:0}};
   G.home = DEMO ? 0 : (SIDE.home ? HUMAN : CPU);   // whose crowd it is (user, v0.61)
-  G.firstPoss = G.poss; G.los = own20(G.poss); setFirstDown();
+  G.firstPoss = G.poss; G.los = own35(G.poss); setFirstDown();
   startHuddle(); G.camX = G.los; banner(TEAM[G.poss].name+' BALL FIRST');
 }
 function setFirstDown(){ G.down = 1; const d = dirOf(G.poss);
@@ -688,7 +695,7 @@ function setAlign(){
 }
 const slowMul = p => (p.slowT > 0 ? 0.5 : 1) * (p.pickT > 0 ? 0.5 : 1) * (p.boost ? 1.2 : 1)
   * (p.role === 'DB' && p.mode === 'blitz' && G.phase === 'live' && G.liveT < 1.5 ? 1.3 : 1)
-  * (p.thru ? 0.75 : 1);   // running through two players locked in a block: 25% slower (user, v0.85)   // a blitzing DB is 30% faster for the first 1.5 s of the play (user, v0.65)
+  * (p.thru ? 0.85 : 1);   // running through two players locked in a block: 15% slower (user, v0.92; was 25%)   // a blitzing DB is 30% faster for the first 1.5 s of the play (user, v0.65)
    // picking up a fumble: half speed for 0.3 s (user, v0.60)   // a block halves speed for 1 s; catch-up boost +20% (user, v0.31)
 function moveToward(p, t, spd, dt){
   if (p.dive || p.downT > 0 || p.fallT > 0 || p.grappled) return false;      // diving, falling, or on the ground
@@ -760,7 +767,7 @@ function snap(){
   const d = G.d;
   G.phase = 'live'; G.mode = 'pass'; G.tapNoDir = false; G.liveT = 0; G.aimArmed = false; G.ctl = null; G.ballTeam = G.off; G.stats.plays++;
   G.cq = {think:0, scramble:false};
-  G.fumText = null; musicStop(); chantTick(false);
+  G.fumText = null; G.wrAsg = null; G.wrAsgC = null; musicStop(); chantTick(false);
   for (const p of G.all){ p.fallT = 0; p.pickT = 0; p.hitBefore = false; p.proneUp = false; p.dvRolled = false; p.slowT = 0; p.imm = new Map(); p.dive = null; p.downT = 0; p.timm = new Map(); p.spinT = 0; p.behindT = 0; p.boost = false; p.blockedT = 0; p.grappled = false; p.turned = false; }
   G.grapple = null;
   for (const w of G.wrs){ w.wp = routeWaypoints(w.route, w.x, w.y, d); w.wpi = 0; w.stopped = false; }
@@ -814,7 +821,7 @@ function diverNow(){
   return null;
 }
 /* computer-run defenders dive at the ball carrier when he's within dive range (user, v0.69) — only once the runner has
-   gotten past them and they're chasing, and never linemen (v0.70): a 40% chance each time
+   gotten past them and they're chasing, and never linemen (v0.70): a 37% chance each time (v0.92)
    he comes into range, and always if the dive could stop a touchdown or first down, meaning no other defender
    could get to him before he reaches that line */
 function cpuDives(){
@@ -836,7 +843,7 @@ function cpuDives(){
     /* v0.74 fix: one 40% roll per defender per ball carrier. Before, it rolled again every time the runner slipped in
        and out of range, which happened many times a second, so they dove far more than 40% of the time. */
     let go = false;
-    if (!p.dvRolled){ p.dvRolled = true; go = rnd() < 0.4; }
+    if (!p.dvRolled){ p.dvRolled = true; go = rnd() < 0.37; }   // 37% (user, v0.92; was 40%)
     if (!go && onlyChance(p, c)) go = true;
     if (!go) continue;
     const vx = c.x + c.vx*hitT - p.x, vy = c.y + c.vy*hitT - p.y, n = Math.hypot(vx,vy) || 1;
@@ -1083,19 +1090,22 @@ function airStep(dt){
   if (f >= 1) endPlay('INC', {text:'INCOMPLETE'});
 }
 function resolveShot(p, pt){
-  /* no interceptions behind the line of scrimmage (user, v0.66): a defender who gets there first bats it down,
-     and a contested ball is broken up */
   const behind = (pt.x - G.los)*G.d < 0;
-  if (behind && p.team === G.def) return endPlay('INC', {text:'BATTED DOWN'});
-  const opps = G.all.filter(o => o.team !== p.team && o !== G.qb && dist(o,pt) < VIC);
-  if (!opps.length) return p.team === G.off ? doCatch(p) : doIntercept(p);      // by himself: 100%
-  // contested: 50% interception, 50% incomplete (75 / 25 if it's a receiver his DB guessed right on)
-  let pInt = 0.5;
-  if (p.team === G.off){ const cb = G.dbs.find(x => x.cover === p); if (cb && cb.mode === 'mirror' && opps.includes(cb)) pInt = 0.75; }
-  else if (p.role === 'DB' && p.mode === 'mirror' && opps.includes(p.cover)) pInt = 0.75;
-  if (behind) return endPlay('INC', {text:'BROKEN UP'});
-  if (rnd() < pInt) doIntercept(p.team === G.def ? p : nearestOf(opps, pt));
-  else endPlay('INC', {text:'BROKEN UP'});
+  /* covered (user, v0.86): when the ball gets there, if a defender is within 0.6 yards of the targeted receiver
+     (feet to feet), it doesn't matter who is closer to the ball: 5% he catches it and is tackled right there,
+     70% incomplete, 25% intercepted by that defender. The same odds whether or not the DB guessed his route. */
+  const w = G.ball.target, cov = w ? G.all.filter(o => o.team === G.def && !(o.downT > 0) && dist(o,w) <= 0.6) : [];
+  if (cov.length){
+    if (behind) return endPlay('INC', {text:'BROKEN UP'});   // no interceptions behind the line (user, v0.66)
+    const r = rnd();
+    if (r < 0.05){ doCatch(w); sfx('tackle'); return endPlay('DOWN', {x:w.x, sack:false}); }
+    if (r < 0.75) return endPlay('INC', {text:'BROKEN UP'});
+    return doIntercept(nearestOf(cov, w));
+  }
+  /* not covered: whoever gets to the ball first has it, 100% (a defender with no receiver near intercepts),
+     except that a defender behind the line bats it down (user, v0.66) */
+  if (p.team === G.def) return behind ? endPlay('INC', {text:'BATTED DOWN'}) : doIntercept(p);
+  return doCatch(p);
 }
 function doCatch(p){
   G.ball = {state:'held', carrier:p}; G.mode = 'run'; G.ballTeam = G.off; p.stopped = true; G.stats.comp++; G.catchX = p.x;
@@ -1145,9 +1155,9 @@ function cpuShouldDive(c, dirT, chasers){
   return false;
 }
 function pursue(p, c, dt){ moveToward(p, {x:c.x+c.vx*0.25, y:c.y+c.vy*0.25}, roleSpd(p), dt); }
-function blockAI(m, c, chasers, dirT, dt){
-  let th = null, bs = 1e9;   // the chaser nearest this blocker, among those that matter
-  for (const o of chasers){ if ((o.imm.get(m)||0) > 0 || dist(o,c) > 9) continue; const s = dist(o,m) + dist(o,c)*0.5; if (s < bs){ bs = s; th = o; } }
+function blockAI(m, c, chasers, dirT, dt, mine){
+  let th = mine || null, bs = 1e9;   // his assigned DB (receivers, v0.88), or else the chaser nearest this blocker, among those that matter
+  if (!th) for (const o of chasers){ if ((o.imm.get(m)||0) > 0 || dist(o,c) > 9) continue; const s = dist(o,m) + dist(o,c)*0.5; if (s < bs){ bs = s; th = o; } }
   const t = th ? {x:th.x+(c.x-th.x)*0.25, y:th.y+(c.y-th.y)*0.25} : {x:c.x+dirT*2, y:c.y};
   moveToward(m, t, roleSpd(m), dt);
 }
@@ -1156,7 +1166,18 @@ function runStep(dt){
   const mates = G.all.filter(p => p.team === T && p !== c), opp = G.all.filter(p => p.team !== T);
   if (isCtl(c)) humanMove(c, roleSpd(c), dt); else cpuRun(c, dirT, opp, dt);
   for (const o of opp){ if (isCtl(o)) humanMove(o, roleSpd(o), dt); else pursue(o, c, dt); }
-  for (const m of mates){ if (isCtl(m)) humanMove(m, roleSpd(m), dt); else blockAI(m, c, opp, dirT, dt); }
+  /* receivers blocking after a catch (user, v0.88/v0.89): each one takes a different defender, any position. The
+     defenders closest to the ball carrier come first, and each gets the nearest receiver still free. They look again
+     every 2 seconds (or right away if a man's defender is on the ground). */
+  if (T === G.off){
+    const wrs = G.wrs.filter(w => w !== c), down = b => b.downT > 0 || b.fallT > 0;
+    if (G.wrAsgC !== c || G.liveT - G.wrAsgT >= 2 || [...(G.wrAsg||new Map()).values()].some(down)){
+      G.wrAsgC = c; G.wrAsgT = G.liveT; G.wrAsg = new Map();
+      const threats = opp.filter(o => !down(o) && dist(o,c) <= 9).sort((a,b) => dist(a,c) - dist(b,c)), free = wrs.slice();
+      for (const t of threats){ if (!free.length) break; let bi = 0; free.forEach((w,i) => { if (dist(w,t) < dist(free[bi],t)) bi = i; }); G.wrAsg.set(free[bi], t); free.splice(bi,1); }
+    }
+  }
+  for (const m of mates){ if (isCtl(m)) humanMove(m, roleSpd(m), dt); else blockAI(m, c, opp, dirT, dt, T === G.off && G.wrAsg ? G.wrAsg.get(m) : null); }
 }
 
 // ---------- blocks: both at half speed for 1.5 s (v0.72). The same blocker can't block that player again until 2 s after the block ends;
@@ -1178,6 +1199,7 @@ function doBlocks(){
   for (const b of blockers) for (const o of targets){
     if (o.slip === b && dist(b,o) > BLOCK_R) o.slip = null;          // they've separated: normal blocking again
     if ((o.imm.get(b)||0) > 0 || dist(b,o) > BLOCK_R) continue;   // immune only to the player who just blocked him
+    if (b.blockedT > 0 || o.blockedT > 0) continue;                 // a player already in a block can't block, or be blocked by, anyone else (user, v0.92)
     if (o.slip === b) continue;                                       // still in the contact he avoided
     if (o.beatsFirst){ o.beatsFirst = false; o.slip = b; o.spinT = 0.4; continue; }  // he avoids the initial block only (user, v0.20), with a spin move (user, v0.29)
     o.slowT = 1.5; b.slowT = 1.5; o.blockedT = 1.5; b.blockedT = 1.5; o.imm.set(b, 3.5); o.blockWith = b; b.blockWith = o; G.stats.blocks++;   // both players are engaged in the block for 1.5 s (user, v0.72; was 1 s); same blocker locked out until 2 s after it ends
@@ -1206,7 +1228,11 @@ function sim(dt){
   for (const p of G.all){ p.y = clamp(p.y, 0.9, FW-0.25); p.x = clamp(p.x, 0.2, FL-0.2); }
   if (G.phase !== 'live') return;
   endSeparatedBlocks(); doBlocks();
-  for (const p of G.all) p.thru = !(p.blockedT > 0) && G.all.some(o => o !== p && o.blockedT > 0 && dist(o,p) <= BLOCK_R);
+  { const me = controlledPlayer(), carrier = G.ball.state === 'held' ? G.ball.carrier : null;
+    for (const p of G.all){ const was = p.thru;
+      p.thru = !(p.blockedT > 0) && G.all.some(o => o !== p && o.blockedT > 0 && dist(o,p) <= BLOCK_R);
+      /* spins as he runs through a blocking pair (user, v0.92) — only the player you control and ball carriers (user, v0.93) */
+      if (p.thru && !was && (p === carrier || (p === me && isHuman(p.team))) && !(p.spinT > 0) && !p.dive && !(p.downT > 0) && !(p.fallT > 0)) p.spinT = 0.4; } }
   if (G.ball.state !== 'held') return;
   if (G.grapple) return grappleStep(dt);
   const c = G.ball.carrier, T = G.ballTeam, dirT = dirOf(T);
@@ -1219,7 +1245,7 @@ function sim(dt){
     const o = c.touchedInAir ? null : G.all.find(o => o.team !== T && !(o.blockedT > 0) && dist(o,c) < TACKLE);
     if (c.touchedInAir || o){
       sfx('tackle');
-      if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.2) return fumble(c);   // first contact was a dive: 20% fumble (user, v0.61)
+      if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.15) return fumble(c);   // first contact was a dive: 15% fumble (user, v0.92; was 20%)
       G.downEarly = true;
       const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
       if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack:false});
@@ -1237,8 +1263,8 @@ function sim(dt){
       G.stats.broken = (G.stats.broken||0) + 1; return; }
     // not evaded: the tacklers lock on and grapple him for 0.3 s before he goes down (user, v0.38)
     sfx('tackle');
-    /* a dive that's the first contact on the runner this play (alone or at the same moment as others) forces a fumble 20% of the time (user, v0.61) */
-    if (!c.hitBefore && hitters.some(h => h.dive) && rnd() < 0.2) return fumble(c);
+    /* a dive that's the first contact on the runner this play (alone or at the same moment as others) forces a fumble 15% of the time (user, v0.92; was 20%) */
+    if (!c.hitBefore && hitters.some(h => h.dive) && rnd() < 0.15) return fumble(c);
     // a diver doesn't grapple: he's at the runner's feet and trips him, so the runner slows and falls by himself (user, v0.40)
     const holders = hitters.filter(h => !h.dive);
     if (!holders.length){   // tripped by a dive: he goes down right there, straight into the 0.4 s fall (user, v0.41)
@@ -1265,7 +1291,7 @@ function grappleStep(dt){
   return endPlay('INTDOWN', {x: inOwnEZ ? null : c.x});
 }
 // ---------- fumbles (user, v0.60) ----------
-/* A dive that makes the tackle (first contact) knocks the ball loose 20% of the time. It bounces 2 or 3 times (random),
+/* A dive that makes the tackle (first contact) knocks the ball loose 15% of the time (v0.92). It bounces 2 or 3 times (random),
    1.5 yards each in a random direction, 0.4 s per bounce. The first player to touch it, in the air or on the ground,
    recovers it and runs at half speed for 0.3 s while he picks it up. If a player from the other team is within 1 yard
    of the ball right then, he's tackled on the spot. Out of bounds: dead, and the team that fumbled keeps it there
@@ -1317,6 +1343,20 @@ function looseStep(dt){
   else { const hum = 1-R; if (isHuman(hum) && !(G.ctl && !G.ctl.pending && G.ctl.p.team === hum)) G.ctl = {p: nearestOf(G.all.filter(p => p.team === hum), first), pending:true}; }
   if (G.all.some(o => o.team !== R && dist(o, grab) <= 1)){ sfx('tackle'); return ballDeadFor(R, first.x); }   // both teams there: recovered, and tackled right away
 }
+// ---------- overtime (user, v0.91): NFL playoff rules ----------
+/* 15-minute periods until there's a winner. Coin toss: the winner chooses to kick or receive (the computer always
+   receives). The receiving team starts at its own 35. Both teams get a possession, even if the first scores a TD;
+   a defensive score on the first possession wins it; after both have had the ball, the next score wins. */
+function startOT(){
+  G.quarter = 5; G.clock = QUARTER_SEC;
+  const humanTeam = isHuman(0) ? 0 : isHuman(1) ? 1 : null, winner = rnd() < 0.5 ? 0 : 1;
+  if (humanTeam != null && winner === humanTeam){ G.phase = 'toss'; G.paused = true; showToss(); return; }
+  beginOT(winner);   // the computer won the toss: it receives
+}
+function beginOT(receiver){
+  G.ot = {A:receiver, B:1-receiver, bStarted:false, bDone:false}; G.otOver = false;
+  changePoss(receiver, own35(receiver)); startHuddle(); banner('OVERTIME', TEAM[receiver].name+' BALL', 2.2);
+}
 function spotText(){
   const fromOwn = Math.round((G.los - (G.poss===0?10:110)) * dirOf(G.poss));
   return fromOwn < 50 ? 'OWN '+fromOwn : fromOwn === 50 ? 'MIDFIELD' : 'OPP '+(100-fromOwn);
@@ -1329,6 +1369,7 @@ function advanceDowns(gain){
   return '';
 }
 function endPlay(type, info){
+  const otFirst = !!(G.ot && !G.ot.bStarted), possBefore = G.poss;   // overtime bookkeeping: was this still the first possession, and whose ball was it
   const off = G.off, def = G.def, d = G.d; let text = '', sub = '', scored = false;
   G.phase = 'dead'; G.t = 0; G.lastPlay = type;
   const bc = G.ball && G.ball.state === 'held' ? G.ball.carrier : null;
@@ -1346,9 +1387,9 @@ function endPlay(type, info){
   if (!DEMO && Math.random() < 0.25) playRiff();   // stadium music on about 1 in 4 dead balls
   switch(type){
     case 'TD': { const T = info.team; G.score[T] += 7; G.stats.td[T]++; if (T === def) G.stats.pick6++;
-      text = 'TOUCHDOWN!'; sub = TEAM[T].name+' +7'; scored = true; changePoss(1-T, own20(1-T)); break; }
-    case 'SAFETY': G.stats.safety++; G.score[def] += 2; text = 'SAFETY!'; sub = TEAM[def].name+' +2'; scored = true;
-      changePoss(def, own20(def)); break;
+      text = 'TOUCHDOWN!'; sub = TEAM[T].name+' +7'; scored = true; G.lastScorer = T; changePoss(1-T, own35(1-T)); break; }
+    case 'SAFETY': G.stats.safety++; G.score[def] += 2; text = 'SAFETY!'; sub = TEAM[def].name+' +2'; scored = true; G.lastScorer = def;
+      changePoss(def, own35(def)); break;
     case 'POSS': text = info.text; sub = 'TOUCHBACK'; changePoss(info.team, own20(info.team)); break;
     case 'INTDOWN': { text = info.text || (G.fumText ? 'FUMBLE RECOVERED' : 'INTERCEPTED!');
       let x = info.x; if (x == null){ x = own20(def); sub = 'TOUCHBACK'; } else x = clamp(x, 10.5, 109.5);
@@ -1360,13 +1401,25 @@ function endPlay(type, info){
       G.los = x; sub = advanceDowns(gain); break; }
   }
   if (!scored) G.clock = Math.max(0, G.clock - BETWEEN_PLAYS);
+  /* overtime (NFL playoff rules, user v0.91): a defensive score on the first possession wins it; otherwise the game
+     ends as soon as the second team's possession is over and someone is ahead (sudden death after that) */
+  if (G.ot && !G.otOver){
+    // the second team's possession ends when it scores or loses the ball; it starts the first time it gets the ball
+    if (G.ot.bStarted && !G.ot.bDone && possBefore === G.ot.B && (scored || G.poss !== G.ot.B)) G.ot.bDone = true;
+    if (!G.ot.bStarted && G.poss === G.ot.B) G.ot.bStarted = true;
+    if (scored && otFirst && G.lastScorer === G.ot.B) G.otOver = true;
+    else if (G.ot.bDone && G.score[0] !== G.score[1]) G.otOver = true;
+  }
   banner(text, sub, 1.7);
 }
 function nextPlay(){
+  if (G.otOver){ G.phase = 'gameover'; G.banner = null; showFinal(); return; }
   if (G.clock <= 0){
-    if (G.quarter === 4){ G.phase = 'gameover'; G.banner = null; showFinal(); return; }
+    if (G.quarter === 4 && G.score[0] !== G.score[1]){ G.phase = 'gameover'; G.banner = null; showFinal(); return; }
+    if (G.quarter === 4) return startOT();                      // tied after four quarters: overtime (user, v0.91)
     G.quarter++; G.clock = QUARTER_SEC;
-    if (G.quarter === 3){ changePoss(1-G.firstPoss, own20(1-G.firstPoss)); startHuddle(); banner('HALFTIME', TEAM[G.poss].name+' BALL'); return; }
+    if (G.quarter > 5){ startHuddle(); banner('OVERTIME '+(G.quarter-4), TEAM[G.poss].name+' BALL'); return; }   // another 15-minute period; the team with the ball keeps it
+    if (G.quarter === 3){ changePoss(1-G.firstPoss, own35(1-G.firstPoss)); startHuddle(); banner('HALFTIME', TEAM[G.poss].name+' BALL'); return; }
     startHuddle(); banner('QUARTER '+G.quarter); return;
   }
   startHuddle();
@@ -1801,11 +1854,15 @@ function drawPlayer(p, mark){
     ctx.strokeStyle = mark.c; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(x, y, FIG*0.34, FIG*0.09, 0, 0, 7); ctx.stroke();
     ctx.fillStyle = mark.c; ctx.beginPath(); ctx.moveTo(x-7, y-FIG-14); ctx.lineTo(x+7, y-FIG-14); ctx.lineTo(x, y-FIG-5); ctx.fill();
   }
-  p.hand = drawAthlete(p, x, y, dirX, pose, T);
-  if (p.slowT > 0){   // contact flash where the block happened
-    const a = performance.now()/60; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-    for (let j=0;j<5;j++){ const t = a + j*1.256; ctx.beginPath(); ctx.moveTo(x + dirX*FIG*0.2 + Math.cos(t)*6, y-FIG*0.6 + Math.sin(t)*6); ctx.lineTo(x + dirX*FIG*0.2 + Math.cos(t)*11, y-FIG*0.6 + Math.sin(t)*11); ctx.stroke(); }
+  /* blocking (user, v0.90): see-through dust puffs kicked up at his feet while he's in a block, drawn under him */
+  if (p.slowT > 0 && G.phase === 'live'){
+    const a = performance.now()/1000 + (p.num||0);
+    ctx.fillStyle = 'rgba(225,212,180,0.32)';
+    [[-9,-1,5],[-15,-4,3.5],[7,0,4.5],[13,-3,3]].forEach(([dx,dy,r], j) => { const k = 1 + 0.25*Math.sin(a*6 + j*1.7);
+      ctx.beginPath(); ctx.arc(x + dx*dirX + Math.sin(a*3 + j)*1.5, y + dy - k, r*k, 0, 7); ctx.fill(); });
   }
+  p.hand = drawAthlete(p, x, y, dirX, pose, T);
+
 }
 const BALL_PX = 14, BALL_LEN_YD = BALL_PX/SX;   // the ball as drawn: 14 px long, about 1/3 yard (11-12 inches)
 /* how far (yards) the front of a player's helmet/facemask sits ahead of his feet in a given pose */
@@ -1898,7 +1955,7 @@ function drawHUD(){
 }
 function drawDownBox(){   // "D1  Q1  &10" in yellow near the bottom of the field, like the cartridge's "D1  Q1"
   const goal = Math.abs(G.toGo - (goalX(G.poss)-G.los)*dirOf(G.poss)) < 0.01;
-  const t = 'D' + Math.min(G.down,4) + '  Q' + G.quarter + '  TO GO ' + (goal ? 'G' : Math.max(1, Math.round(G.toGo)));
+  const t = 'D' + Math.min(G.down,4) + '  ' + (G.quarter > 4 ? 'OT' + (G.quarter > 5 ? G.quarter-4 : '') : 'Q' + G.quarter) + '  TO GO ' + (goal ? 'G' : Math.max(1, Math.round(G.toGo)));
   blockText(t, W/2, FIELD_BOT - 26, 3, C.clock, 'center');
 }
 function draw(){
@@ -1938,6 +1995,15 @@ function draw(){
     else if (p === visitTarget) mark = {c:C.white, blink:true};
     drawPlayer(p, mark);
   }
+  /* impact star where two blockers meet (user, v0.90): bright when the block starts, fading evenly with the block timer,
+     gone when the block ends. Drawn once per pair, over both players. */
+  if (G.phase === 'live') for (const p of G.all){ const bw = p.blockWith;
+    if (!(p.slowT > 0) || !bw || !(bw.slowT > 0) || bw.blockWith !== p || p.team !== G.def) continue;
+    const cx = (X(p.x) + X(bw.x))/2, cy = (Y(p.y) + Y(bw.y))/2 - FIG*0.62;
+    ctx.save(); ctx.globalAlpha = Math.min(1, p.slowT/1.5);
+    ctx.fillStyle = '#ffe14d'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.2; ctx.beginPath();
+    for (let j=0;j<16;j++){ const r = j%2 ? 4 : 10, an = j*Math.PI/8; ctx[j ? 'lineTo' : 'moveTo'](cx + Math.cos(an)*r, cy + Math.sin(an)*r); }
+    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
   if (G.phase !== 'gameover') drawBall();
   if (showKeys) drawThrowBadges(1);
   drawHUD();
@@ -1968,6 +2034,10 @@ function startGame(){
    or key press. So while a game is going, the first tap or key press after coming back puts it in full screen again. */
 ['touchend','pointerup','keydown'].forEach(ev => addEventListener(ev, () => { if (G && !DEMO) goFull(); }, true));
 function toTitle(){ musicStop(); chantTick(false); murmurLevel(0); G = null; $('menu').hidden = true; $('forms').hidden = true; $('final').hidden = true; $('quit').hidden = true; $('title').hidden = false; btnEl.textContent = ''; }
+function showToss(){ $('toss').hidden = false; }
+function tossPick(receiveIt){ $('toss').hidden = true; if (!G) return; G.paused = false; const me = isHuman(0) ? 0 : 1; beginOT(receiveIt ? me : 1-me); }
+$('tossrecv').addEventListener('click', () => tossPick(true));
+$('tosskick').addEventListener('click', () => tossPick(false));
 function showFinal(){
   const [a,b] = G.score;
   $('fh').textContent = a===b ? 'Tie Game' : a>b ? 'You Win!' : 'Final';
