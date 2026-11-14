@@ -130,7 +130,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 0.93</small>
+    <small id="ver">Version 0.96</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -395,6 +395,12 @@ const SFX = {
     o.connect(g); g.connect(FX); o.start(t); trem.start(t); o.stop(t+0.6); trem.stop(t+0.6);
     const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.025, 0.02);
   },
+  thud(){   // the spiked ball hitting the turf: a small, soft thump (user, v0.95)
+    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(70, t+0.09); env(g, t, 0.003, 0.25, 0.11);
+    o.connect(g); g.connect(FX); o.start(t); o.stop(t+0.14);
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; noiseThrough(t, 0.05, lp, 0.08, 0.002);
+  },
   tackle(){   // pads hitting + body on turf
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t+0.18); env(g, t, 0.005, 0.7, 0.22);
@@ -456,23 +462,27 @@ function crowdBoo(big){   // crowd booing: lots of low "boooo" voices swelling a
 }
 /* steady crowd murmur under the whole game; a little quieter while the ball is live (user, v0.61) */
 let MURMUR = null;
-function murmurBuf(){   // a few seconds of crowd babble: many voices, each a string of short syllables
-  const sr = AC.sampleRate, len = Math.floor(sr*6), b = AC.createBuffer(1, len, sr), d = b.getChannelData(0);
-  for (let v=0; v<36; v++){
-    let i = Math.floor(Math.random()*sr*0.3), lp = 0; const cut = 0.05 + Math.random()*0.12, amp = 0.5 + Math.random()*0.5;
-    while (i < len){ const syl = Math.floor(sr*(0.07 + Math.random()*0.16)), gap = Math.floor(sr*(0.02 + Math.random()*(Math.random()<0.15 ? 0.6 : 0.08)));
-      for (let k=0; k<syl && i+k<len; k++){ lp += cut*((Math.random()*2-1) - lp); d[i+k] += lp*amp*Math.sin(Math.PI*k/syl); }
-      i += syl + gap; }
-  }
-  let m = 0; for (let i=0;i<len;i++) m = Math.max(m, Math.abs(d[i])); for (let i=0;i<len;i++) d[i] /= (m||1);
-  const fade = Math.floor(sr*0.3); for (let i=0;i<fade;i++){ const a = i/fade; d[i] = d[i]*a + d[len-fade+i]*(1-a); }   // smooth loop seam
+function murmurBuf(){   // stadium roar (user's pick "B", v0.94): 8 s of pink noise, the loop seam cross-faded
+  const sr = AC.sampleRate, len = Math.floor(sr*8), b = AC.createBuffer(1, len, sr), d = b.getChannelData(0);
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for (let i=0;i<len;i++){ const w = Math.random()*2-1; b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759; b2=0.96900*b2+w*0.1538520;
+    b3=0.86650*b3+w*0.3104856; b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980; d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926; }
+  const fade = Math.floor(sr*0.5); for (let i=0;i<fade;i++){ const a = i/fade; d[i] = d[i]*a + d[len-fade+i]*(1-a); }
+  let m = 0; for (let i=0;i<len-fade;i++) m = Math.max(m, Math.abs(d[i])); for (let i=0;i<len;i++) d[i] /= (m||1);
   return b;
 }
 function murmurLevel(lvl){
   try { if (!AC || !CROWD) return;
-    if (!MURMUR && lvl > 0){ const src = AC.createBufferSource(); src.buffer = murmurBuf(); src.loop = true; src.loopStart = 0.3; src.loopEnd = 6;
-      const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 0.6;
-      const g = AC.createGain(); g.gain.value = 0.0001; src.connect(bp); bp.connect(g); g.connect(CROWD); src.start(); MURMUR = {src, g, lvl:0}; }
+    if (!MURMUR && lvl > 0){
+      /* a deep rumble (90-900 Hz) that slowly swells and fades, with a faint brighter layer on top */
+      const src = AC.createBufferSource(); src.buffer = murmurBuf(); src.loop = true; src.loopStart = 0; src.loopEnd = 8 - 0.5;
+      const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
+      const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+      const sw = AC.createGain(); sw.gain.value = 0.9; const lfo = AC.createOscillator(), lg = AC.createGain(); lfo.frequency.value = 0.13; lg.gain.value = 0.25; lfo.connect(lg); lg.connect(sw.gain);
+      const air = AC.createBiquadFilter(); air.type = 'bandpass'; air.frequency.value = 1100; air.Q.value = 0.8; const ag = AC.createGain(); ag.gain.value = 0.06;
+      const g = AC.createGain(); g.gain.value = 0.0001;
+      src.connect(hp); hp.connect(lp); lp.connect(sw); sw.connect(g); src.connect(air); air.connect(ag); ag.connect(g); g.connect(CROWD);
+      src.start(); lfo.start(); MURMUR = {src, g, lvl:0}; }
     if (!MURMUR || MURMUR.lvl === lvl) return;
     const t = AC.currentTime; MURMUR.lvl = lvl; MURMUR.g.gain.cancelScheduledValues(t); MURMUR.g.gain.setValueAtTime(Math.max(0.0001, MURMUR.g.gain.value), t);
     MURMUR.g.gain.exponentialRampToValueAtTime(Math.max(0.0001, lvl), t+0.6);
@@ -630,7 +640,7 @@ function startHuddle(){
   const NUMS = {QB:[7], WR:[81,84,88], OL:[62,70,75], LB:[54], DB:[21,24,31], DL:[90,93,97]}, seen = {};
   for (const p of G.all){ const k = p.role, i = seen[k] = (seen[k]||0); seen[k]++; p.num = NUMS[k][i % NUMS[k].length]; p.skin = (p.num*7 + p.team*3) % 5; }
   for (const w of G.wrs) w.throwKey = null;
-  faceCenters(); G.downed = null; G.tdBy = null; G.throwT = -9;
+  faceCenters(); G.downed = null; G.tdBy = null; G.spike = null; G.armsUp = false; G.armsT = 0; G.throwT = -9;
   G.ball = {state:'spot'};   // the ball sits on the line of scrimmage until the center snaps it (user, v0.63)
   G.guessesDone = false; G.returning = false;
   G.phase = 'formation'; G.mode = null; G.t = 0; G.visit = 0; G.wait = 0; G.waiting = false; G.formation = null; G.ctl = null;
@@ -1010,7 +1020,7 @@ function cover(db, dt){
   const w = db.cover, d = G.d;
   /* once a DB gets to his receiver he stays between the QB and him, 0.5 yards from the receiver (user, v0.56) */
   const inside = (px, py) => { const q = G.qb, k = Math.hypot(q.x-px, q.y-py) || 1; return {x:px+(q.x-px)/k*0.5, y:py+(q.y-py)/k*0.5}; };
-  if (db.mode === 'blitz') return moveToward(db, ballSpot(), SPD.dbChase, dt);   // blitz: straight for the ball carrier, his receiver ignored (user, v0.60)
+  if (db.mode === 'blitz') return moveToward(db, G.liveT < 0.5 ? G.qb : ballSpot(), SPD.dbChase, dt);   // blitz: straight at the QB from the snap, then the ball carrier after 0.5 s (user, v0.96); his receiver ignored (v0.60)
   if (db.mode === 'mirror') moveToward(db, inside(w.x, w.y), SPD.mirror, dt);
   else if (db.mode === 'wrong'){
     const wp = db.wp[db.wpi]; if (wp){ if (moveToward(db, wp, SPD.db, dt)) db.wpi++; } else { db.vx = db.vy = 0; }
@@ -1425,6 +1435,20 @@ function nextPlay(){
   startHuddle();
 }
 
+/* touchdown celebration (user, v0.94): 5 s. The scorer raises his hands while you hold the HORN button (the computer's
+   scorer raises his at random). Then he spikes the ball; it bounces twice and the next drive starts. */
+const SPIKE_REL = 0.28, SPIKE_END = 1.3;   // ball leaves his hand 0.28 s into the spike; the bounces are done about 1 s later
+function tdCelebration(dt){
+  if (G.t < 5){
+    if (hornAllowed()) G.armsUp = !!input.btn;
+    else { G.armsT = (G.armsT || 0) - dt; if (G.armsT <= 0){ G.armsUp = !G.armsUp; G.armsT = G.armsUp ? 0.6 + rnd()*0.6 : 0.4 + rnd()*1.0; } }
+    return; }
+  G.armsUp = false;
+  if (!G.spike) G.spike = {t0:G.t};
+  const st = G.t - G.spike.t0, S = G.tdBy;
+  if (G.ball.state === 'spike' && !G.ball.thud && G.t - G.ball.t0 >= 0.06){ G.ball.thud = true; sfx('thud'); }   // it hits the turf (user, v0.95)
+  if (st >= SPIKE_REL && G.ball.state === 'held'){ G.ball = {state:'spike', x:S.x + (S.facing||1)*0.3, y:S.y, dir:S.facing||1, t0:G.t, h0:S.hand ? (Y(S.y) - S.hand.y) : FIG*0.6}; }
+}
 /* air horn: after a touchdown scored by your team, offense or defense (user, v0.41), the button blows an air horn for as long as you hold it (user, v0.39) */
 function hornAllowed(){ return G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team); }
 function stepPrePlay(dt){
@@ -1474,9 +1498,10 @@ function update(dt){
     case 'dead':
       G.t += dt;
       if (hornAllowed()){ if (input.btnEdge) hornOn(); if (input.btnUpEdge || !input.btn) hornOff(); }   // the air horn (user, v0.39)
+      if (G.tdBy) tdCelebration(dt);
       else if (input.btnEdge){ const dv = diverNow(); if (dv) tryDive(dv); }   // late dives, just for fun: up to 1 s after the whistle (user, v0.47)
       stepDives(dt);
-      if (G.t > (G.tdBy ? 4 : 1.8)){ hornOff(); nextPlay(); }   // 4 s to watch a touchdown celebration (user, v0.39)
+      if (G.tdBy ? (G.spike && G.t - G.spike.t0 > SPIKE_END) : G.t > 1.8){ hornOff(); nextPlay(); }   // touchdown: 5 s celebration, then the spike (user, v0.94)
       break;
     case 'gameover': break;
   }
@@ -1632,7 +1657,15 @@ function tackleFall(f){
 }
 /* touchdown celebrations: arms up with a hop, raise the roof, or a fist pump (picked by jersey number) */
 function celebrate(p, t){
-  const kind = p === G.tdBy ? 0 : (p.num||0) % 3, ph = t*7 + (p.num||0);
+  if (p === G.tdBy){   // the scorer (user, v0.94): ball tucked, arms up when the horn button is held, then the spike
+    if (G.spike){ const st = G.t - G.spike.t0, sm = x => x*x*(3-2*x);
+      if (st < 0.13){ const w = sm(st/0.13); return {lean:-0.1*w, hip:0.5, legs:[{t:-0.12,k:0.25},{t:0.15,k:0.3}], arms:[{u:0.3,e:0.4},{u:0.35+2.55*w, e:2.0-1.7*w}]}; }   // ball up
+      if (st < SPIKE_REL){ const w = sm((st-0.13)/(SPIKE_REL-0.13)); return {lean:-0.1+0.55*w, hip:0.5-0.06*w, legs:[{t:0.25*w,k:0.25+0.4*w},{t:-0.15,k:0.3}], arms:[{u:0.3,e:0.4},{u:2.9-2.6*w, e:0.3}]}; }   // slam it down
+      const w = Math.min(1, (st-SPIKE_REL)/0.4); return {lean:0.45-0.4*w, hip:0.44+0.06*w, legs:[{t:0.25*(1-w),k:0.65-0.4*w},{t:-0.15,k:0.3}], arms:[{u:0.3,e:0.4},{u:0.3,e:0.3}]}; }
+    if (G.armsUp) return POSES.cheer(t);
+    return {...POSES.stand(), arms:[{u:0.3,e:0.4},{u:0.35,e:2.0}]};
+  }
+  const kind = (p.num||0) % 3, ph = t*7 + (p.num||0);
   if (kind === 0) return POSES.cheer(t + (p.num||0)*0.13);
   if (kind === 1){ const pump = Math.sin(ph)*0.35;   // raise the roof: palms up, pushing up and down
     return {lean:-0.05, hip:0.5 + 0.015*Math.sin(ph), legs:[{t:-0.12,k:0.25},{t:0.12,k:0.25}], arms:[{u:2.0+pump,e:1.1-pump},{u:2.1+pump,e:1.0-pump}]}; }
@@ -1884,6 +1917,15 @@ function drawBall(){
   if (b.state === 'held'){ const c = b.carrier; if (!c.hand) return;
     if (c.spinT > 0){ const f = 1 - c.spinT/0.4; if (f >= 0.625 && f < 0.875) return; }   // his back is to us mid-spin: the ball is hidden in front of him
     drawFootball(c.hand.x + (c.facing||1)*2, c.hand.y, (c.facing||1) > 0 ? -0.3 : Math.PI+0.3, 7); return; }
+  if (b.state === 'spike'){   // spiked: slammed into the turf, then two bounces and a roll (user, v0.94)
+    const tt = G.t - b.t0, d = b.dir; let lift, dx;
+    if (tt < 0.06){ lift = b.h0*(1 - tt/0.06); dx = 0.1*tt/0.06; }
+    else if (tt < 0.44){ const f = (tt-0.06)/0.38; lift = 16*4*f*(1-f); dx = 0.1 + 0.6*f; }
+    else if (tt < 0.7){ const f = (tt-0.44)/0.26; lift = 6*4*f*(1-f); dx = 0.7 + 0.35*f; }
+    else { lift = 0; dx = 1.05 + 0.25*Math.min(1, (tt-0.7)/0.3); }
+    const px = X(b.x + d*dx), py = Y(b.y);
+    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(px, py, 6, 2.5, 0, 0, 7); ctx.fill();
+    drawFootball(px, py - 3 - lift, d*(tt < 1 ? tt*16 : 16), 7); return; }
   if (b.state === 'loose'){   // a fumble bouncing / lying on the turf
     const px = X(b.x), py = Y(clamp(b.y, 0, FW)), lift = (b.h + 0.12)*SY*0.9;
     ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(px, py, 6, 2.5, 0, 0, 7); ctx.fill();
