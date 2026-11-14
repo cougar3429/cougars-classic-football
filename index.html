@@ -130,7 +130,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.00</small>
+    <small id="ver">Version 1.01</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1006,7 +1006,7 @@ function throwTo(w){
   for (let k=0;k<3;k++){ T = dist(q,p)/SPD.ball; p = predict(w,T); }
   p = {x:clamp(p.x,0,FL), y:clamp(p.y,0.9,FW-0.25)};
   const D = dist(q,p);
-  G.ball = {state:'air', sx:q.x, sy:q.y, tx:p.x, ty:p.y, t:0, T:Math.max(D/SPD.ball,0.25), target:w, h:Math.min(2.5, 0.3+D*0.1)};
+  G.ball = {state:'air', sx:q.x, sy:q.y, tx:p.x, ty:p.y, t:0, T:Math.max(D/SPD.ball,0.25), target:w, h:Math.min(3.0, 0.35+D*0.12)};   // arc: nudged about 20% higher (user, v1.01; was min(2.5, 0.3+D*0.1))
   G.mode = 'air'; q.vx = q.vy = 0; G.throwT = G.liveT; sfx('swoosh');
 }
 function followRoute(w, dt){
@@ -1102,7 +1102,8 @@ function airStep(dt){
   G.qb.vx = G.qb.vy = 0;
   if (isHuman(G.def)) humanMove(G.lb, SPD.lb, dt); else cpuLB(dt);
   b.t += dt; const f = Math.min(1, b.t/b.T), pt = {x:b.sx+(b.tx-b.sx)*f, y:b.sy+(b.ty-b.sy)*f}, h = b.h*4*f*(1-f);
-  if (f > 0.3 && h <= CATCH_H){
+  /* the ball can only be touched in its last yard before it lands (user, v1.01), once it's down to catching height */
+  if (f > 0.3 && h <= CATCH_H && Math.hypot(b.tx-pt.x, b.ty-pt.y) <= 1){
     let first = null, fd = REACH;
     for (const p of G.all){ if (p === G.qb) continue; const k = dist(p,pt); if (k < fd){ fd = k; first = p; } }
     if (first) return resolveShot(first, pt);
