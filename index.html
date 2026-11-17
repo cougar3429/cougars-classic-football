@@ -130,7 +130,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.01</small>
+    <small id="ver">Version 1.02</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -845,31 +845,49 @@ function cpuDives(){
     /* v0.74 fix: "in range" now means the dive actually gets to him, counting where he runs during the dive.
        Before, it only looked at where he was when the dive started, so a chaser 2 yards behind dove and landed short. */
     const spd = SPD.dive*(p.boost || 1);
-    let hitT = -1;   // aim at where he'll be at time t; keep the first aim that actually brings the diver into tackling contact
-    for (let k = 1; k <= 10 && hitT < 0; k++){ const t = 0.03*k, ax = c.x + c.vx*t - p.x, ay = c.y + c.vy*t - p.y, an = Math.hypot(ax,ay) || 1;
-      for (let j = 1; j <= 20; j++){ const tau = 0.015*j, dx = p.x + ax/an*spd*tau - (c.x + c.vx*tau), dy = p.y + ay/an*spd*tau - (c.y + c.vy*tau);
-        if (Math.hypot(dx,dy) < TACKLE*0.85){ hitT = t; break; } } }
+    const hit = diveHit(p.x, p.y, c, 0, spd), hitT = hit ? hit.t : -1;
     if (hitT < 0 || p.dive || p.downT > 0 || p.fallT > 0 || p.blockedT > 0 || p.grappled) continue;
     /* v0.74 fix: one 40% roll per defender per ball carrier. Before, it rolled again every time the runner slipped in
        and out of range, which happened many times a second, so they dove far more than 40% of the time. */
     let go = false;
     if (!p.dvRolled){ p.dvRolled = true; go = rnd() < 0.37; }   // 37% (user, v0.92; was 40%)
-    if (!go && onlyChance(p, c)) go = true;
+    if (!go && hit && onlyChance(p, c, hit, spd)) go = true;
     if (!go) continue;
     const vx = c.x + c.vx*hitT - p.x, vy = c.y + c.vy*hitT - p.y, n = Math.hypot(vx,vy) || 1;
     p.proneUp = false; p.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; p.touchedInAir = false; if (vx) p.facing = Math.sign(vx);
   }
 }
-function onlyChance(me, c){   // would the runner reach the goal line or the first-down line before any other defender could get to him?
+/* aim at where the runner will be at time t; the first aim that actually brings the diver into tackling contact.
+   w = how long from now the dive starts (0 = right now). Returns {t: aim time, x: where the runner is at contact} or null. */
+function diveHit(px, py, c, w, spd){
+  const cx = c.x + c.vx*w, cy = c.y + c.vy*w;
+  for (let k = 1; k <= 10; k++){ const t = 0.03*k, ax = cx + c.vx*t - px, ay = cy + c.vy*t - py, an = Math.hypot(ax,ay) || 1;
+    for (let j = 1; j <= 20; j++){ const tau = 0.015*j, dx = px + ax/an*spd*tau - (cx + c.vx*tau), dy = py + ay/an*spd*tau - (cy + c.vy*tau);
+      if (Math.hypot(dx,dy) < TACKLE*0.85) return {t, x: cx + c.vx*tau}; } }
+  return null;
+}
+/* the "only chance" dive (user, v1.02): he always dives when ALL of these are true for the first-down line (while the
+   runner is short of it) or the goal line:
+   1. no other defender can stop the runner before that line;
+   2. this dive reaches the runner while he's still short of that line;
+   3. he can't wait: if he held off 0.1 s and dove then, the runner would get to the line first.
+   Anywhere else it's only the 37% roll. */
+const DIVE_WAIT = 0.1;
+function onlyChance(me, c, hit, spd){
   const T = c.team, dirT = dirOf(T), v = roleSpd(c)*slowMul(c) || 1;
   const lines = [goalX(T)]; if (T === G.off) lines.push(G.los + G.d*G.toGo);
   const others = G.all.filter(o => o.team !== T && o !== me && !(o.downT > 0) && !(o.fallT > 0) && !o.dive);
+  /* where he'd be after waiting DIVE_WAIT: still running at the runner */
+  const ms = roleSpd(me)*slowMul(me), mk = Math.hypot(c.x-me.x, c.y-me.y) || 1;
+  const later = diveHit(me.x + (c.x-me.x)/mk*ms*DIVE_WAIT, me.y + (c.y-me.y)/mk*ms*DIVE_WAIT, c, DIVE_WAIT, spd);
   for (const L of lines){
-    const dl = (L - c.x)*dirT; if (dl <= 0) continue;
+    const dl = (L - c.x)*dirT; if (dl <= 0) continue;                       // already past this line: it doesn't count
+    if ((L - hit.x)*dirT <= 0) continue;                                     // 2. the dive wouldn't get him short of it
+    if (later && (L - later.x)*dirT > 0) continue;                           // 3. he can still wait and dive later
     let stopped = false;
     for (let k = 1; k <= 12 && !stopped; k++){ const sd = dl*k/12, P = {x:c.x + dirT*sd, y:c.y}, tRun = sd/v;
       if (others.some(o => dist(o,P) - TACKLE <= roleSpd(o)*slowMul(o)*tRun)) stopped = true; }
-    if (!stopped) return true;
+    if (!stopped) return true;                                               // 1. nobody else can stop him before it
   }
   return false;
 }
