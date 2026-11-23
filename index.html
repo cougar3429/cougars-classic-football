@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.22</small>
+    <small id="ver">Version 1.23</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -429,6 +429,11 @@ const SFX = {
     o.connect(g); g.connect(FX); o.start(t); trem.start(t); o.stop(t+0.6); trem.stop(t+0.6);
     const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.025, 0.02);
   },
+  boom(){   // a spike that made it through the whole celebration: a deep, booming hit (user, v1.23)
+    const t = AC.currentTime + 0.005, o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(28, t+1.0);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.9, t+0.01); g.gain.exponentialRampToValueAtTime(0.0001, t+1.3); o.connect(g); g.connect(FX); o.start(t); o.stop(t+1.35);
+    const n = AC.createBufferSource(); n.buffer = noiseBuf(1.4); const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(600, t); lp.frequency.exponentialRampToValueAtTime(90, t+1.2);
+    const ng = AC.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.6, t+0.01); ng.gain.exponentialRampToValueAtTime(0.0001, t+1.3); n.connect(lp); lp.connect(ng); ng.connect(FX); n.start(t); },
   thud(){   // the spiked ball hitting the turf: a small, soft thump (user, v0.95)
     const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(70, t+0.09); env(g, t, 0.003, 0.25, 0.11);
@@ -647,21 +652,31 @@ function sayHaha(){
     else { ha(t0, [[0, 230], [0.15, 220]], 0.22, 0.55, true); ha(t0+0.24, [[0, 180], [0.4, 165]], 0.48, 0.5, true); }        // "B": quicker, with a breathy "h", about 0.7 s (user, v1.18)
   } catch (e) {}
 }
-/* "Ugh!" (user's pick, v1.22): a grunt each time someone lands on the pile, short or long at random, at a random pitch like a
-   different player each time. The first version (mostly voice) and an airy, breathy one played together. Voice slider. */
+/* pile grunts (user's picks, v1.23): one of four at random each time someone lands on the pile, at a random pitch like a
+   different player: the "Ugh!" (short or long, its voiced part cut in half), "OOF!" (the air knocked out, with a soft puff after)
+   and "HNNGH!" (strained, through the nose). Each with a body thud. Voice slider. */
 function sayUgh(){
-  try { if (!AC || VOL.voice <= 0) return; const t = AC.currentTime + 0.01, out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
-    const grunt = (dur, f0, drop, peak, voice, breath, q) => {
+  try { if (!AC || VOL.voice <= 0) return; const t0 = AC.currentTime + 0.01, out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
+    const grunt = (t, o) => {
+      const {dur, vDur = dur, f0, drop, peak, voice, breath, fm, q = 1} = o;
       const bus = AC.createGain(); bus.gain.setValueAtTime(0.0001, t); bus.gain.exponentialRampToValueAtTime(peak, t+0.02); bus.gain.setValueAtTime(peak, t+dur*0.4); bus.gain.exponentialRampToValueAtTime(0.0001, t+dur); bus.connect(out);
-      const ins = [[640,1,6],[1190,0.6,8],[2400,0.3,10]].map(([f, a, qq]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = qq*q; const g = AC.createGain(); g.gain.value = a*4; bp.connect(g); g.connect(bus); return bp; });
-      const src = AC.createOscillator(); src.type = 'sawtooth'; src.frequency.setValueAtTime(f0, t); src.frequency.exponentialRampToValueAtTime(f0*drop, t+dur);
-      const sg = AC.createGain(); sg.gain.value = voice; src.connect(sg); ins.forEach(x => sg.connect(x));
-      const n = AC.createBufferSource(); n.buffer = noiseBuf(dur+0.05); const ng = AC.createGain(); ng.gain.value = breath; n.connect(ng); ins.forEach(x => ng.connect(x));
-      src.start(t); n.start(t); src.stop(t+dur+0.02); n.stop(t+dur+0.05); };
-    const long = Math.random() < 0.5, dur = long ? 0.45 : 0.25, f = long ? 130 + Math.random()*50 : 150 + Math.random()*60, drop = long ? 0.6 : 0.75;
-    grunt(dur, f, drop, long ? 0.32 : 0.35, 1, 0.25, 1); grunt(dur, f, drop, long ? 0.22 : 0.25, 0.22, 0.9, 0.67);
-    const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(50, t+0.12);   // thud
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t+0.005); g.gain.exponentialRampToValueAtTime(0.0001, t+0.15); o.connect(g); g.connect(out); o.start(t); o.stop(t+0.16);
+      const ins = fm.map(([f, a, qq]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = qq*q; const g = AC.createGain(); g.gain.value = a*4; bp.connect(g); g.connect(bus); return bp; });
+      if (voice > 0){ const src = AC.createOscillator(); src.type = 'sawtooth'; src.frequency.setValueAtTime(f0, t); src.frequency.exponentialRampToValueAtTime(f0*drop, t+vDur);
+        const sg = AC.createGain(); if (vDur >= dur) sg.gain.value = voice;
+        else { sg.gain.setValueAtTime(0.0001, t); sg.gain.exponentialRampToValueAtTime(voice, t+0.01); sg.gain.setValueAtTime(voice, t+vDur*0.6); sg.gain.exponentialRampToValueAtTime(0.0001, t+vDur); }
+        src.connect(sg); ins.forEach(x => sg.connect(x)); src.start(t); src.stop(t+vDur+0.02); }
+      const n = AC.createBufferSource(); n.buffer = noiseBuf(dur+0.05); const ng = AC.createGain(); ng.gain.value = breath; n.connect(ng); ins.forEach(x => ng.connect(x)); n.start(t); n.stop(t+dur+0.05); };
+    const thud = (t, peak) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(50, t+0.12);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+0.005); g.gain.exponentialRampToValueAtTime(0.0001, t+0.15); o.connect(g); g.connect(out); o.start(t); o.stop(t+0.16); };
+    const UH = [[640,1,6],[1190,0.6,8],[2400,0.3,10]], pick = Math.floor(Math.random()*4);
+    if (pick < 2){ const long = pick === 1, dur = long ? 0.45 : 0.25, f = long ? 130 + Math.random()*50 : 150 + Math.random()*60, drop = long ? 0.6 : 0.75, vDur = dur/2;   // "Ugh!"
+      grunt(t0, {dur, vDur, f0:f, drop, peak: long ? 0.32 : 0.35, voice:1, breath:0.25, fm:UH});
+      grunt(t0, {dur, vDur, f0:f, drop, peak: long ? 0.22 : 0.25, voice:0.22, breath:0.9, fm:UH, q:0.67}); thud(t0, 0.5); }
+    else if (pick === 2){ const f = 170 + Math.random()*60;   // "OOF!"
+      grunt(t0, {dur:0.2, vDur:0.09, f0:f, drop:0.7, peak:0.45, voice:0.7, breath:0.7, fm:[[320,1,5],[870,0.5,7],[2300,0.15,10]]});
+      grunt(t0+0.1, {dur:0.12, f0:f, drop:1, peak:0.075, voice:0, breath:1, fm:[[1200,1,1.5],[3000,0.4,2]]}); thud(t0, 0.55); }
+    else { const f = 190 + Math.random()*60;   // "HNNGH!"
+      grunt(t0, {dur:0.25, vDur:0.2, f0:f, drop:0.85, peak:0.35, voice:0.9, breath:0.35, fm:[[260,1,6],[1000,0.25,8],[2600,0.5,9]], q:1.3}); thud(t0, 0.45); }
   } catch (e) {}
 }
 function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant the ball is snapped (user, v0.31; quicker, no clicks v0.35)
@@ -1591,7 +1606,7 @@ function endPlay(type, info){
   const off = G.off, def = G.def, d = G.d; let text = '', sub = '', scored = false;
   G.phase = 'dead'; G.t = 0; G.lastPlay = type;
   const bc = G.ball && G.ball.state === 'held' ? G.ball.carrier : null;
-  if (type === 'TD'){ G.tdBy = bc; G.tdOff = G.off; G.tdCtl = (G.ctl && G.ctl.p && isHuman(G.ctl.p.team)) ? G.ctl.p : (isHuman(G.def) ? humanDefender() || G.lb : null); /* v1.12 fix: was controlledPlayer(), which gives nobody once the play is dead */ G.tdKnocked = false; G.tdChaser = null; G.tdPile = null; G.tdDiver = null; for (const p of G.all){ p.tdVx = p.vx || 0; p.tdVy = p.vy || 0; p.tdArrived = false; } } else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
+  if (type === 'TD'){ G.tdBy = bc; G.tdOff = G.off; G.tdCtl = (G.ctl && G.ctl.p && isHuman(G.ctl.p.team)) ? G.ctl.p : (isHuman(G.def) ? humanDefender() || G.lb : null); /* v1.12 fix: was controlledPlayer(), which gives nobody once the play is dead */ G.tdKnocked = false; G.tdChaser = null; G.tdPile = null; G.tdDiver = null; G.shakeT = 0; for (const p of G.all){ p.tdVx = p.vx || 0; p.tdVy = p.vy || 0; p.tdArrived = false; } } else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
   if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
   /* whose good play was it? (user, v0.61) Offense: touchdown, first down, 5+ yards. Defense: sack, interception, fumble recovered
      from the other team, safety, or holding the gain under 2 yards (not a first down or TD). An incomplete pass counts for nobody. */
@@ -1659,7 +1674,7 @@ function nextPlay(){
 /* touchdown celebration (user, v0.94): 5 s. The scorer raises his hands while you hold the HORN button (the computer's
    scorer raises his at random). Then he spikes the ball; it bounces twice and the next drive starts. */
 const TD_CELEB = 7;   // seconds of celebrating before the spike (user, v1.19; was 5)
-const SPIKE_REL = 0.28, SPIKE_END = 1.3;   // ball leaves his hand 0.28 s into the spike; the bounces are done about 1 s later
+const SPIKE_REL = 0.28, SPIKE_END = 1.3, SHAKE_T = 0.4;   // ball leaves his hand 0.28 s into the spike; the bounces are done about 1 s later
 function tdCelebration(dt){
   if (G.t < TD_CELEB){
     if (hornAllowed()) G.armsUp = !!input.btn;
@@ -1668,7 +1683,11 @@ function tdCelebration(dt){
   G.armsUp = false;
   if (!G.spike) G.spike = {t0:G.t};
   const st = G.t - G.spike.t0, S = G.tdBy;
-  if (G.ball.state === 'spike' && !G.ball.thud && G.t - G.ball.t0 >= 0.06){ G.ball.thud = true; sfx('thud'); }   // it hits the turf (user, v0.95)
+  if (G.ball.state === 'spike' && !G.ball.thud && G.t - G.ball.t0 >= 0.06){ G.ball.thud = true; sfx('thud');   // it hits the turf (user, v0.95)
+    /* (user, v1.23) he made it through the whole celebration: the screen shakes, a deep boom, and every opponent is knocked onto
+       his back and stays down for the rest of the celebration */
+    sfx('boom'); G.shakeT = SHAKE_T;
+    for (const o of G.all) if (o.team !== S.team){ o.spikeDown = true; if (!o.dive && !(o.fallT > 0) && !(o.downT > 0)){ o.fallT = 0.4; o.backFall = true; o.vx = o.vy = 0; } } }
   if (st >= SPIKE_REL && G.ball.state === 'held'){ G.ball = {state:'spike', x:S.x + (S.facing||1)*0.3, y:S.y, dir:S.facing||1, t0:G.t, h0:S.hand ? (Y(S.y) - S.hand.y) : FIG*0.6}; }
 }
 /* air horn: after a touchdown scored by your team, offense or defense (user, v0.41), the button blows an air horn for as long as you hold it (user, v0.39) */
@@ -1754,6 +1773,7 @@ function tdLive(dt){
   { const st = G.all.filter(o => o.flopper && o.fp === 'lie' && o.stackLvl >= 0);
     if (st.length >= 3){ st.sort((a,b) => b.fpT - a.fpT); rollOff(st[0]); } }
   for (const p of G.all){
+    if (p.spikeDown && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = true; p.backFall = true; p.vx = p.vy = 0; }   // flattened by the spike: flat on his back
     if (p.piled && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = false; p.vx = p.vy = 0; } }
 }
 function hornAllowed(){ return G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team); }
@@ -1807,7 +1827,7 @@ function update(dt){
     case 'dead':
       G.t += dt;
       if (hornAllowed()){ if (input.btnEdge) hornOn(); if (input.btnUpEdge || !input.btn) hornOff(); }   // the air horn (user, v0.39)
-      if (G.tdBy){ tdLive(dt); tdCelebration(dt); }
+      if (G.tdBy){ tdLive(dt); tdCelebration(dt); } if (G.shakeT > 0) G.shakeT -= dt;
       else if (input.btnEdge){ const dv = diverNow(); if (dv) tryDive(dv); }   // late dives, just for fun: up to 1 s after the whistle (user, v0.47)
       stepDives(dt);
       if (G.tdBy ? (G.spike && G.t - G.spike.t0 > SPIKE_END) : G.t > (G.brokeAt != null ? 2 : 1.8)){ hornOff(); nextPlay(); }   // touchdown: 5 s celebration, then the spike (user, v0.94)
@@ -2359,7 +2379,9 @@ function drawDownBox(){   // "D1  Q1  &10" in yellow near the bottom of the fiel
 }
 function draw(){
   const nowT = performance.now(); frameDt = Math.min(0.1, Math.max(0.001, (nowT - lastDrawT)/1000)); lastDrawT = nowT;
-  ctx.setTransform(K*DPR, 0, 0, K*DPR, 0, 0);
+  let shx = 0, shy = 0;
+  if (G && G.shakeT > 0){ const a = 4*G.shakeT/SHAKE_T; shx = (Math.random()*2-1)*a; shy = (Math.random()*2-1)*a; }   // the spike's screen shake: up to 4 px, dying away (user, v1.23)
+  ctx.setTransform(K*DPR, 0, 0, K*DPR, shx*K*DPR, shy*K*DPR);
   ctx.imageSmoothingEnabled = false;
   if (!G){ view.left = 49; ctx.fillStyle = C.hud; ctx.fillRect(0, 0, W, HUD_H); drawField(); return; }
   view.left = clamp(G.camX - VIEW_YDS/2, -1, FL + 1 - VIEW_YDS);
