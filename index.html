@@ -2268,7 +2268,7 @@ function drawPlayer(p, mark){
   }
   if (!moving && G.phase === 'presnap') dirX = p.team === G.off ? G.d : -G.d;
   p.facing = dirX;
-  const pose = poseFor(p, moving, p.spd);
+  let pose = poseFor(p, moving, p.spd);   // let: hands go up while he laughs, below (v1.25 fix)
   ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(x, y, FIG*(pose.lying ? 0.5 : 0.24 + 0.26*(pose.wide||0)), FIG*0.06, 0, 0, 7); ctx.fill();
   if (mark && !(mark.blink && (Math.floor(performance.now()/180) % 2))){
     ctx.strokeStyle = mark.c; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(x, y, FIG*0.34, FIG*0.09, 0, 0, 7); ctx.stroke();
