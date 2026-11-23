@@ -31,7 +31,7 @@ body { margin: 0; background: #12301d; color: var(--cream); font-family: var(--f
 .fbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
 
 /* D pad and button (same as baseball) */
-#dpad { position: absolute; left: 18px; bottom: 14px; width: 136px; height: 136px; touch-action: none; }
+#dpad { position: absolute; left: 18px; bottom: 14px; width: 136px; height: 136px; touch-action: none; opacity: 0.6; }   /* 40% see-through (user, v1.21) */
 #dpad .arm { position: absolute; width: 46px; height: 46px; background: rgba(251,238,224,0.82); border: 3px solid var(--ink); box-sizing: border-box; display: flex; align-items: center; justify-content: center; color: var(--ink); }
 #dpad .arm.on { background: var(--gold); }
 #dpad .u { left: 45px; top: 0; border-radius: 10px 10px 0 0; border-bottom: none; }
@@ -40,7 +40,7 @@ body { margin: 0; background: #12301d; color: var(--cream); font-family: var(--f
 #dpad .r { right: 0; top: 45px; border-radius: 0 10px 10px 0; border-left: none; }
 #dpad .c { position: absolute; left: 45px; top: 45px; width: 46px; height: 46px; background: rgba(251,238,224,0.82); }
 #btn { position: absolute; right: 26px; bottom: 26px; width: 88px; height: 88px; border-radius: 50%; border: 3px solid var(--ink); background: var(--red); box-shadow: inset 0 -6px 0 #a52520, 0 4px 0 var(--ink); touch-action: none; padding: 0;
-  color: #fff; font: 400 13px var(--font-display); }
+  color: #fff; font: 400 13px var(--font-display);  opacity: 0.6; /* 40% see-through (user, v1.21) */ }
 #btn.on { transform: translateY(3px); box-shadow: inset 0 -3px 0 #a52520, 0 1px 0 var(--ink); }
 /* moving the controls */
 #dpad.ctlmv, #btn.ctlmv { outline: 3px dashed var(--gold); outline-offset: 6px; z-index: 9; cursor: move; }
@@ -122,16 +122,17 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 
   <section class="screen" id="title">
     <h1>Cougar's Classic<br>Football</h1>
-    <p>7 on 7 against the computer. You drive to the right. No kicks: a touchdown is worth 7.</p>
+    <p>7 on 7 against the computer. Teams switch ends every quarter. No kicks: a touchdown is worth 7.</p>
     <div class="trow">
       <button type="button" class="selbtn colbtn" id="colb1" aria-label="Team colors"><span class="swp"><i></i><i></i></span>COLORS</button>
       <div class="row"><label>Team</label><div class="seg" role="group" aria-label="Home or away"><button type="button" id="sidehome" aria-pressed="true">HOME</button><button type="button" id="sideaway" aria-pressed="false">AWAY</button></div></div>
       <div class="row"><label>Opening</label><div class="seg" role="group" aria-label="Kick or receive"><button type="button" id="optkick" aria-pressed="false">KICK</button><button type="button" id="optrecv" aria-pressed="true">RECEIVE</button></div></div>
+      <div class="row"><label>Quarter</label><div class="seg" role="group" aria-label="Quarter length in minutes"><button type="button" id="q5" aria-pressed="false">5</button><button type="button" id="q10" aria-pressed="false">10</button><button type="button" id="q15" aria-pressed="true">15</button></div></div>
       <div class="row"><label>Controls</label><div class="seg" role="group" aria-label="Move the controls"><button type="button" id="ctlmove">MOVE</button><button type="button" id="ctlreset">RESET</button></div></div>
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.19</small>
+    <small id="ver">Version 1.21</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -323,7 +324,7 @@ addEventListener('keyup', e => {
    sideline, the two right-heavy ones along its right sideline (the top of the screen is the offense's left when it
    drives right, the bottom when it drives left), on the offense's side of the screen */
 function placeForms(){
-  const d = G.d, bs = [...document.querySelectorAll('.fbtn')], gap = 8, edge = 165;
+  const d = G.d, bs = [...document.querySelectorAll('.fbtn')], gap = 8, edge = 165; G.formsD = d;
   const leftTop = d > 0, rows = [[bs[0], bs[1]], [bs[2], bs[3]]];   // [left-heavy, right-heavy]
   rows.forEach((row, r) => {
     const top = (r === 0) === leftTop ? 56 : 272;
@@ -675,11 +676,17 @@ function teamLook(u){ u = fullUni(u); const p = colHex(u.p), s = colHex(u.s);
   return {p:u.p, s:u.s, col:p, dark:colMix(p,-0.45), sec:s, helm:colHex(u.h), pants:colHex(u.pt), helmDark:colMix(s,-0.45), ez:colMix(p,-0.18), ink:colInk(u.p)}; }
 const HUMAN = 0, CPU = 1;
 const isHuman = t => !DEMO && t === HUMAN;
-const dirOf = t => t === 0 ? 1 : -1;            // team 0 (you) attacks right (+x)
-const goalX = t => t === 0 ? 110 : 10;          // goal line team t attacks
-const own20 = t => t === 0 ? 30 : 90;   // touchbacks on interceptions and fumbles (NFL: the 20)
-const own35 = t => t === 0 ? 45 : 75;   // drives that start in place of a kickoff (NFL kickoff touchback, the 35) (user, v0.91)
-const QUARTER_SEC = 15*60, CLOCK_SCALE = 5, BETWEEN_PLAYS = 40;
+/* team 0 (you) attacks right (+x) in the 1st and 3rd quarters; the teams switch ends every quarter (user, v1.21): G.flip */
+const dirOf = t => (t === 0 ? 1 : -1) * (typeof G !== 'undefined' && G && G.flip ? -1 : 1);
+const goalX = t => dirOf(t) > 0 ? 110 : 10;     // goal line team t attacks
+const own20 = t => dirOf(t) > 0 ? 30 : 90;   // touchbacks on interceptions and fumbles (NFL: the 20)
+const own35 = t => dirOf(t) > 0 ? 45 : 75;   // drives that start in place of a kickoff (NFL kickoff touchback, the 35) (user, v0.91)
+const QUARTER_SEC = 15*60, CLOCK_SCALE = 5;
+/* quarter length, picked on the start menu and kept on this phone: 5, 10 or 15 minutes (user, v1.21) */
+const QLEN = {min:15};
+try { const q = +localStorage.getItem('ccf-qlen'); if ([5,10,15].includes(q)) QLEN.min = q; } catch (e) {}
+function saveQlen(){ try { localStorage.setItem('ccf-qlen', String(QLEN.min)); } catch (e) {} }
+const quarterSec = () => QLEN.min*60;
 /* running speeds were cut in half (user, Nov 8, version 0.3) */
 /* every speed slowed another 20% (user, v0.25) */
 const SLOW = 0.8;
@@ -708,14 +715,14 @@ const rnd = Math.random;
 let G = null;
 const PR = 0.28;          // player radius (draw)
 const TACKLE = 0.55, BLOCK_R = 0.5,   /* block contact distance 0.5 yd (user, v0.77; was 0.55) */ REACH = 0.6, VIC = 0.6, CATCH_H = 0.8;
-function mk(role, team, x, y){ return {role, team, x, y, vx:0, vy:0, face: team===0?0:Math.PI, slowT:0, imm:new Map()}; }
+function mk(role, team, x, y){ return {role, team, x, y, vx:0, vy:0, face: dirOf(team) > 0 ? 0 : Math.PI, slowT:0, imm:new Map()}; }
 function arcPos(c, side, i){ const a = (-75 + i*30)*Math.PI/180, r = 1.5;
   return {x: c.x + side*Math.cos(a)*r, y: c.y + Math.sin(a)*r}; }
 function banner(text, sub, dur){ G.banner = {text, sub:sub||'', t:0, dur:dur||1.9}; }
 
 function newGame(){
   const hk = curKit().home; Object.assign(TEAM[0], teamLook(hk)); { const cp = randCol(hk.p); Object.assign(TEAM[1], teamLook({p:cp, s:randCol(cp), h:'white', pt:'white'})); }   // computer: random primary/secondary, white helmet and pants
-  G = {score:[0,0], quarter:1, clock:QUARTER_SEC, poss: DEMO ? (rnd()<.5?0:1) : (OPEN.kick ? 1 : 0), phase:'formation', t:0,
+  G = {score:[0,0], quarter:1, clock:quarterSec(), flip:false, poss: DEMO ? (rnd()<.5?0:1) : (OPEN.kick ? 1 : 0), phase:'formation', t:0,
        camX:60, banner:null, stats:{plays:0,int:0,inc:0,sack:0,td:[0,0],comp:0,pick6:0,qbrun:0,blocks:0,safety:0}};
   G.home = DEMO ? 0 : (SIDE.home ? HUMAN : CPU);   // whose crowd it is (user, v0.61)
   G.firstPoss = G.poss; G.los = own35(G.poss); setFirstDown();
@@ -805,6 +812,7 @@ function setAlign(){
 }
 const slowMul = p => (p.slowT > 0 ? 0.5 : 1) * (p.pickT > 0 ? 0.5 : 1) * (p.boost || 1)
   * (p.role === 'DB' && p.mode === 'blitz' && G.phase === 'live' && G.liveT < 1.5 ? 1.3 : 1)
+  * (G.reward && p.team === G.def && G.phase === 'live' && G.liveT < 5 ? 1.2 : 1)   // the defense guessed every route: all its players +20% for the first 5 s (user, v1.20)
   * (p.thru ? 0.85 : 1);   // running through two players locked in a block: 15% slower (user, v0.92; was 25%)   // a blitzing DB is 30% faster for the first 1.5 s of the play (user, v0.65)
    // picking up a fumble: half speed for 0.3 s (user, v0.60)   // a block halves speed for 1 s; catch-up boost +20% (user, v0.31)
 function moveToward(p, t, spd, dt){
@@ -1387,6 +1395,7 @@ function doBlocks(){
     if ((o.imm.get(b)||0) > 0 || dist(b,o) > BLOCK_R) continue;   // immune only to the player who just blocked him
     if (b.blockedT > 0 || o.blockedT > 0) continue;                 // a player already in a block can't block, or be blocked by, anyone else (user, v0.92)
     if (o.slip === b) continue;                                       // still in the contact he avoided
+    if (G.reward && o.role === 'DL' && o.team === G.def){ o.slip = b; o.spinT = 0.4; continue; }   // the defense guessed every route: its linemen beat every block this play (user, v1.20)
     if (o.beatsFirst){ o.beatsFirst = false; o.slip = b; o.spinT = 0.4; continue; }  // he avoids the initial block only (user, v0.20), with a spin move (user, v0.29)
     o.slowT = 1.5; b.slowT = 1.5; o.blockedT = 1.5; b.blockedT = 1.5; o.imm.set(b, lineVsLine(b,o) ? 2.25 : 3.5); o.blockWith = b; b.blockWith = o; G.stats.blocks++;   // both players are engaged in the block for 1.5 s (user, v0.72; was 1 s); same blocker locked out until 2 s after it ends
   }
@@ -1516,7 +1525,7 @@ function looseStep(dt){
     b.x = b.sx + (b.tx-b.sx)*f; b.y = b.sy + (b.ty-b.sy)*f; b.h = BOUNCE_H*4*f*(1-f);
     if (b.t >= BOUNCE_T){ b.bounced = true; if (b.left > 0) nextBounce(b); else { b.left = -1; b.h = 0; } }
   }
-  if (b.y < 0 || b.y > FW || b.x < 0 || b.x > FL){   // out of bounds: dead, the team that fumbled keeps it (real rule)
+  if (b.y < 0 || b.y > FW || b.x < 0 || b.x > FL){ G.oob = true;   // out of bounds: dead, the team that fumbled keeps it (real rule)
     const T = G.fumBy, x = clamp(b.x, 0, FL);
     if ((x-goalX(T))*dirOf(T) >= 0) return T === G.off ? endPlay('INTDOWN', {x:null, text:'OUT OF END ZONE'}) : endPlay('POSS', {team:G.off, text:'OUT OF END ZONE'});
     return ballDeadFor(T, x);
@@ -1540,7 +1549,7 @@ function looseStep(dt){
    receives). The receiving team starts at its own 35. Both teams get a possession, even if the first scores a TD;
    a defensive score on the first possession wins it; after both have had the ball, the next score wins. */
 function startOT(){
-  G.quarter = 5; G.clock = QUARTER_SEC;
+  G.quarter = 5; G.clock = quarterSec(); G.flip = !G.flip;   // switch ends for overtime too (v1.21)
   const humanTeam = isHuman(0) ? 0 : isHuman(1) ? 1 : null, winner = rnd() < 0.5 ? 0 : 1;
   if (humanTeam != null && winner === humanTeam){ G.phase = 'toss'; G.paused = true; showToss(); return; }
   beginOT(winner);   // the computer won the toss: it receives
@@ -1550,7 +1559,7 @@ function beginOT(receiver){
   changePoss(receiver, own35(receiver)); startHuddle(); banner('OVERTIME', TEAM[receiver].name+' BALL', 2.2);
 }
 function spotText(){
-  const fromOwn = Math.round((G.los - (G.poss===0?10:110)) * dirOf(G.poss));
+  const fromOwn = Math.round((G.los - goalX(1-G.poss)) * dirOf(G.poss));
   return fromOwn < 50 ? 'OWN '+fromOwn : fromOwn === 50 ? 'MIDFIELD' : 'OPP '+(100-fromOwn);
 }
 function advanceDowns(gain){
@@ -1565,7 +1574,7 @@ function endPlay(type, info){
   const off = G.off, def = G.def, d = G.d; let text = '', sub = '', scored = false;
   G.phase = 'dead'; G.t = 0; G.lastPlay = type;
   const bc = G.ball && G.ball.state === 'held' ? G.ball.carrier : null;
-  if (type === 'TD'){ G.tdBy = bc; G.tdOff = G.off; G.tdCtl = (G.ctl && G.ctl.p && isHuman(G.ctl.p.team)) ? G.ctl.p : (isHuman(G.def) ? humanDefender() || G.lb : null); /* v1.12 fix: was controlledPlayer(), which gives nobody once the play is dead */ G.tdKnocked = false; G.tdChaser = null; G.tdPile = null; for (const p of G.all){ p.tdVx = p.vx || 0; p.tdVy = p.vy || 0; p.tdArrived = false; } } else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
+  if (type === 'TD'){ G.tdBy = bc; G.tdOff = G.off; G.tdCtl = (G.ctl && G.ctl.p && isHuman(G.ctl.p.team)) ? G.ctl.p : (isHuman(G.def) ? humanDefender() || G.lb : null); /* v1.12 fix: was controlledPlayer(), which gives nobody once the play is dead */ G.tdKnocked = false; G.tdChaser = null; G.tdPile = null; G.tdDiver = null; for (const p of G.all){ p.tdVx = p.vx || 0; p.tdVy = p.vy || 0; p.tdArrived = false; } } else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
   if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
   /* whose good play was it? (user, v0.61) Offense: touchdown, first down, 5+ yards. Defense: sack, interception, fumble recovered
      from the other team, safety, or holding the gain under 2 yards (not a first down or TD). An incomplete pass counts for nobody. */
@@ -1600,7 +1609,11 @@ function endPlay(type, info){
       text = info.sack ? 'SACK!' : (g>0?'+':'')+g+' YARDS';
       G.los = x; sub = advanceDowns(gain); break; }
   }
-  if (!scored) G.clock = Math.max(0, G.clock - BETWEEN_PLAYS);
+  /* NFL-style (user, v1.21): the clock stops between plays after a score, an incomplete pass, a change of possession
+     (interception, fumble lost, turnover on downs, touchback) or a ball out of bounds */
+  const clockStops = scored || type === 'INC' || G.poss !== possBefore || G.oob;
+  G.oob = false;
+  G.clockRun = !clockStops;   // (user, v1.21) if it doesn't stop, the clock runs while the teams get ready for the next snap
   /* overtime (NFL playoff rules, user v0.91): a defensive score on the first possession wins it; otherwise the game
      ends as soon as the second team's possession is over and someone is ahead (sudden death after that) */
   if (G.ot && !G.otOver){
@@ -1617,7 +1630,8 @@ function nextPlay(){
   if (G.clock <= 0){
     if (G.quarter === 4 && G.score[0] !== G.score[1]){ G.phase = 'gameover'; G.banner = null; showFinal(); return; }
     if (G.quarter === 4) return startOT();                      // tied after four quarters: overtime (user, v0.91)
-    G.quarter++; G.clock = QUARTER_SEC;
+    G.quarter++; G.clock = quarterSec(); G.clockRun = false;   // overtime periods use the quarter length too (user, v1.21)
+    G.flip = !G.flip; G.los = FL - G.los;   // the teams switch ends every quarter; the ball moves to the same yard line at the other end (user, v1.21)
     if (G.quarter > 5){ startHuddle(); banner('OVERTIME '+(G.quarter-4), TEAM[G.poss].name+' BALL'); return; }   // another 15-minute period; the team with the ball keeps it
     if (G.quarter === 3){ changePoss(1-G.firstPoss, own35(1-G.firstPoss)); startHuddle(); banner('HALFTIME', TEAM[G.poss].name+' BALL'); return; }
     startHuddle(); banner('QUARTER '+G.quarter); return;
@@ -1644,7 +1658,7 @@ function tdCelebration(dt){
 /* (user, v1.11) everyone stays live through the touchdown celebration. You steer the player you had at the score: the
    scorer runs around (button = horn, hands up), or your defender runs and dives (button = dive). The computer's players
    on the scoring team run to the scorer; the other team slows to a stop, except (when you scored) the computer's defender
-   closest to your scorer, who goes after him (65% of the time) and dives at him once. A dive that hits anyone on the scoring team knocks him
+   closest to your scorer, who always goes after him and dives at him once. A dive that hits anyone on the scoring team knocks him
    onto his back (0.4 s down, 0.5 s to get up). If the scorer goes down while he still has the ball, he drops it (no spike)
    and the crowd flips: a 4 s boo instead of the cheer, or a 4 s cheer instead of the boos. Then all his teammates go after the
    man who knocked him down and dive on him; once one gets him, he and everyone in the pile stay down for the rest of the
@@ -1652,9 +1666,13 @@ function tdCelebration(dt){
 const FLOP_UP = 0.3;
 function tdLive(dt){
   const S = G.tdBy, T = S.team, me = G.tdCtl, spiking = G.t >= TD_CELEB;
-  /* (user, v1.11) the computer goes after your scorer 65% of the time, with one dive only */
-  if (G.tdChaser === null && isHuman(T)){ G.tdChaser = false;
-    if (rnd() < 0.65){ let best = null, bd = 1e9; for (const o of G.all){ if (o.team === T || isHuman(o.team)) continue; const k = dist(o,S); if (k < bd){ bd = k; best = o; } } G.tdChaser = best || false; } }
+  /* (user, v1.21) the computer always goes after your scorer (was 65%): its closest man dives at him once; if he misses, the
+     next closest who hasn't tried goes, and so on, until one knocks him down or they've all tried */
+  const nextChaser = () => { let best = null, bd = 1e9;
+    for (const o of G.all){ if (o.team === T || isHuman(o.team) || G.tdTried.has(o) || o.downT > 0 || o.fallT > 0) continue; const k = dist(o,S); if (k < bd){ bd = k; best = o; } }
+    if (best) G.tdTried.add(best); return best || false; };
+  if (G.tdChaser === null && isHuman(T)){ G.tdTried = new Set(); G.tdChaser = nextChaser(); }
+  if (G.tdChaser === false && G.tdDiver && !G.tdDiver.dive){ G.tdDiver = null; if (!G.tdKnocked) G.tdChaser = nextChaser(); }   // he missed: the next man goes
   if (me && me.team !== T && input.btnEdge){ if (G.tdKnocked) sayHaha(); else tryDive(me); }   // once you've knocked the scorer down, the button taunts instead of diving (user, v1.18)
   for (const p of G.all){
     if (p.dive || p.downT > 0 || p.fallT > 0 || p.flopper) continue;
@@ -1663,7 +1681,7 @@ function tdLive(dt){
       if (S.fallT > 0 || S.downT > 0){ p.vx = p.vy = 0; }
       else { const hit = diveHit(p.x, p.y, S, 0, SPD.dive);
         if (hit){ const vx = S.x + (S.vx||0)*hit.t - p.x, vy = S.y + (S.vy||0)*hit.t - p.y, n = Math.hypot(vx,vy) || 1;
-          p.proneUp = false; p.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; if (vx) p.facing = Math.sign(vx); p.tdVx = p.tdVy = 0; G.tdChaser = false; }   // one dive per score
+          p.proneUp = false; p.dive = {t:0, vx:vx/n*SPD.dive, vy:vy/n*SPD.dive}; if (vx) p.facing = Math.sign(vx); p.tdVx = p.tdVy = 0; G.tdChaser = false; G.tdDiver = p; }   // one dive each
         else moveToward(p, S, roleSpd(p), dt); }
     }
     else if (G.tdPile && p.team === T && p !== S){   // the pile (user, v1.14): everyone on the scorer's team goes after the man who knocked him down
@@ -1711,12 +1729,15 @@ function stepPrePlay(dt){
    otherwise the metallic ka-chunk if at least one was */
 function allGuessedCheck(){
   const hits = G.dbs.filter(b => b.cover && b.guess === b.cover.route).length;
+  G.reward = hits === G.dbs.length;   // the reward for guessing every route, you or the computer (user, v1.20)
   if (hits === G.dbs.length) sfx('buzz'); else if (hits > 0) sfx('lock');
 }
 // ---------- main update ----------
 function update(dt){
   { const on = G && !DEMO && G.phase !== 'gameover';   // crowd (user, v0.61): murmur all game, a little quieter while the ball is live
     murmurLevel(on ? (G.phase === 'live' ? 0.08 : 0.12) : 0);
+    /* the clock runs at play speed while the teams get ready, after a play that didn't stop it (user, v1.21) */
+    if (G && G.clockRun && !G.paused && ['formation','hwalk','routes','guess','align','presnap'].includes(G.phase)) G.clock = Math.max(0, G.clock - dt*CLOCK_SCALE);
     chantTick(on && !G.paused && (G.down === 3 || G.down === 4) && G.def === G.home && ['formation','hwalk','routes','guess','align','presnap'].includes(G.phase)); }
   if (!G || G.paused) { input.btnEdge = input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null; return; }
   if (G.banner){ G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
@@ -1758,7 +1779,7 @@ function update(dt){
   else if (G.phase === 'formation' || G.phase === 'hwalk' || G.phase === 'routes' || G.phase === 'guess') fx = G.los;
   G.camX += (fx - G.camX) * Math.min(1, dt*4);
   input.btnEdge = false; input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null;
-  const fh = !(G.phase==='formation' && isHuman(G.off)); if ($('forms').hidden !== fh){ $('forms').hidden = fh; if (!fh) placeForms(); }
+  const fh = !(G.phase==='formation' && isHuman(G.off)); if ($('forms').hidden !== fh){ $('forms').hidden = fh; if (!fh) placeForms(); } else if (!fh && G.formsD !== G.d) placeForms();
   const lbl = btnLabel(); if (btnEl.textContent !== lbl) btnEl.textContent = lbl;
 }
 
@@ -2135,7 +2156,7 @@ function drawPlayer(p, mark){
   const moving = p.spd > 0.15;
   p.anim += mv * 4.4;                                    // about one full stride per 1.4 yards
   // facing: the way he's moving, except defenders backpedal in coverage, facing the offense
-  let dirX = Math.abs(dx) > 1e-4 && !(p.downT > 0) ? Math.sign(dx) : (p.facing || (p.team===0?1:-1));
+  let dirX = Math.abs(dx) > 1e-4 && !(p.downT > 0) ? Math.sign(dx) : (p.facing || dirOf(p.team));
   p.back = false;
   /* DBs backpedal (facing the offense) until their receiver gets to them, then turn and run the way they're going.
      The linebacker always faces the way he's running. (user, v0.43) */
@@ -2361,6 +2382,9 @@ function showFinal(){
   $('fsc').textContent = `${TEAM[0].name} ${a}  –  ${b} ${TEAM[1].name}`;
   $('menu').hidden = true; $('final').hidden = false;
 }
+function showQlen(){ [5,10,15].forEach(m => $('q'+m).setAttribute('aria-pressed', QLEN.min === m)); }   // quarter length (user, v1.21)
+[5,10,15].forEach(m => $('q'+m).addEventListener('click', () => { QLEN.min = m; saveQlen(); showQlen(); }));
+showQlen();
 function showOpen(){ $('optkick').setAttribute('aria-pressed', OPEN.kick); $('optrecv').setAttribute('aria-pressed', !OPEN.kick); }
 $('optkick').addEventListener('click', () => { OPEN.kick = true; saveOpen(); showOpen(); });
 $('optrecv').addEventListener('click', () => { OPEN.kick = false; saveOpen(); showOpen(); });
