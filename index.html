@@ -131,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.15</small>
+    <small id="ver">Version 1.17</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -384,7 +384,26 @@ function noiseBuf(sec){ const b = AC.createBuffer(1, Math.max(1, Math.floor(AC.s
 function env(g, t, a, peak, rel){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+a); g.gain.exponentialRampToValueAtTime(0.0001, t+a+rel); }
 function noiseThrough(t, sec, filt, peak, a){ const n = AC.createBufferSource(); n.buffer = noiseBuf(sec); const g = AC.createGain(); env(g, t, a||0.01, peak, sec);
   n.connect(filt); filt.connect(g); g.connect(FX); n.start(t); n.stop(t+sec+0.05); return filt; }
+/* turnover and fumble sounds (user's picks, v1.16): a brass stab the moment the ball changes hands on an interception or a
+   fumble recovery, and a "wrong chord" on the piano the moment the ball comes loose */
+const midiHz = m => 440*Math.pow(2, (m-69)/12);
+function brassNote(t, m, dur, peak){
+  const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+0.02); g.gain.setValueAtTime(peak, t+dur*0.6); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(600, t); lp.frequency.exponentialRampToValueAtTime(4000, t+0.05); lp.frequency.exponentialRampToValueAtTime(1800, t+dur);
+  lp.connect(g); g.connect(FX);
+  [0, 0.006].forEach(dt => { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = midiHz(m)*(1+dt); o.connect(lp); o.start(t); o.stop(t+dur+0.02); });
+}
+function pianoNote(t, m, dur, peak, cut){
+  const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+0.004); g.gain.exponentialRampToValueAtTime(peak*0.35, t+0.12);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+(cut || dur)); g.connect(FX);
+  [[1,1],[2,0.5],[3,0.25],[4,0.12],[5,0.06]].forEach(([h,a]) => { const o = AC.createOscillator(), og = AC.createGain(); o.type = 'sine'; o.frequency.value = midiHz(m)*h*(1+0.0008*h*h); og.gain.value = a;
+    o.connect(og); og.connect(g); o.start(t); o.stop(t+dur+0.02); });
+  const n = AC.createBufferSource(); n.buffer = noiseBuf(0.03); const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2000; const ng = AC.createGain(); ng.gain.setValueAtTime(peak*0.4, t); ng.gain.exponentialRampToValueAtTime(0.0001, t+0.03);
+  n.connect(hp); hp.connect(ng); ng.connect(FX); n.start(t);
+}
 const SFX = {
+  turnover(){ const t = AC.currentTime + 0.01; [60, 64, 67, 72].forEach(m => brassNote(t, m, 0.18, 0.09)); [62, 67, 71, 74].forEach(m => brassNote(t+0.16, m, 0.45, 0.09)); },   // brass stab (v1.16)
+  fumble(){ const t = AC.currentTime + 0.01; [60, 61, 66, 67, 70].forEach(m => pianoNote(t, m, 0.4, 0.09, 0.38)); },   // wrong chord (v1.16)
   lock(){   // metallic "ka-CHUNK": a DB is locked onto a route
     const t0 = AC.currentTime;
     const click = (t, f, vol) => { const g = AC.createGain(); env(g, t, 0.003, vol, 0.09);
@@ -1253,6 +1272,7 @@ function doCatch(p){
   else if (isHuman(G.def)) G.ctl = {p:nearestOf([G.lb, ...G.dbs, ...G.dls], p), pending:true};
 }
 function doIntercept(p){
+  sfx('turnover');   // (user, v1.16)
   G.ball = {state:'held', carrier:p}; G.mode = 'run'; G.ballTeam = G.def; G.stats.int++;
   banner('INTERCEPTED!', '', 1.1);
   if (isHuman(G.def)) G.ctl = {p, pending:true};
@@ -1294,7 +1314,12 @@ function cpuShouldDive(c, dirT, chasers){
   }
   return false;
 }
-function pursue(p, c, dt){ moveToward(p, {x:c.x+c.vx*0.25, y:c.y+c.vy*0.25}, roleSpd(p), dt); }
+/* pursuit: from behind or the side, aim a quarter second ahead of the runner. A defender already in front of him runs straight
+   at him (v1.17 fix: he used to aim at that spot ahead too, reach it, and run along 0.83 yards in front, never close enough
+   to tackle) */
+function pursue(p, c, dt){
+  const vx = c.vx || 0, vy = c.vy || 0, inFront = (p.x - c.x)*vx + (p.y - c.y)*vy > 0;
+  moveToward(p, inFront ? c : {x:c.x+vx*0.25, y:c.y+vy*0.25}, roleSpd(p), dt); }
 function blockAI(m, c, chasers, dirT, dt, mine){
   let th = mine || null, bs = 1e9;   // his assigned DB (receivers, v0.88), or else the chaser nearest this blocker, among those that matter
   if (!th) for (const o of chasers){ if ((o.imm.get(m)||0) > 0 || dist(o,c) > 9) continue; const s = dist(o,m) + dist(o,c)*0.5; if (s < bs){ bs = s; th = o; } }
@@ -1444,6 +1469,7 @@ function grappleStep(dt){
 const BOUNCE_LEN = 1.5, BOUNCE_T = 0.4, BOUNCE_H = 0.5;
 function fumble(c){
   G.stats.fum = (G.stats.fum||0) + 1;
+  sfx('fumble');   // (user, v1.16)
   c.backFall = false;
   if (!(c.downT > 0)) c.fallT = 0.4; c.vx = c.vy = 0;   // the runner falls (0.4 s), then the 0.5 s get-up (already down after his own dive: just the get-up)
   G.ball = {state:'loose', x:c.x, y:c.y, left: rnd() < 0.5 ? 2 : 3, t:0, h:0};
@@ -1484,6 +1510,7 @@ function looseStep(dt){
   if (!first) return;
   const R = first.team;
   if (R === G.def && G.fumBy === G.off) G.fumText = true;
+  if (R !== G.fumBy) sfx('turnover');   // the other team recovered it (user, v1.16)
   G.ball = {state:'held', carrier:first}; G.ballTeam = R; G.mode = 'run'; first.pickT = 0.3; first.stopped = true;
   if (isHuman(R)) G.ctl = {p:first, pending: !isCtl(first)};
   else { const hum = 1-R; if (isHuman(hum) && !(G.ctl && !G.ctl.pending && G.ctl.p.team === hum)) G.ctl = {p: nearestOf(G.all.filter(p => p.team === hum), first), pending:true}; }
@@ -1529,8 +1556,9 @@ function endPlay(type, info){
   else if (type === 'INTDOWN' && !info.text) good = def;
   else if (type === 'DOWN'){ if (info.sack) good = def;
     else { const gain = (clamp(info.x, 10.5, 109.5) - G.los)*d; fd = gain >= G.toGo - 0.01; if (gain >= G.toGo - 0.01 || gain >= 5) good = off; else if (gain < 2) good = def; } }
-  /* a 4th-down stop (turnover on downs, incomplete passes included) is the defense's good play, with the 4 s reaction (user, v1.12) */
-  const fourthStop = G.down === 4 && (type === 'INC' || (type === 'DOWN' && !fd));
+  /* a 3rd- or 4th-down stop (short of the first down, incomplete passes included) is the defense's good play, with the 4 s
+     reaction (user, v1.12 for 4th down; 3rd down added v1.16) */
+  const fourthStop = (G.down === 3 || G.down === 4) && (type === 'INC' || (type === 'DOWN' && !fd));
   if (fourthStop) good = def;
   G.tdCrowd = crowdReact(good, type === 'TD', fd || fourthStop || (type === 'DOWN' && !!info.sack));   // every first down (user, v1.05) and every sack (user, v1.07): a 4 s cheer or boo
   if (!DEMO && Math.random() < 0.25) playRiff();   // stadium music on about 1 in 4 dead balls
