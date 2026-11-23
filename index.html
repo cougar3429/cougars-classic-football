@@ -131,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.12</small>
+    <small id="ver">Version 1.13</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1607,6 +1607,7 @@ function tdLive(dt){
       const f = Math.exp(-3*dt); p.tdVx = (p.tdVx||0)*f; p.tdVy = (p.tdVy||0)*f; p.x += p.tdVx*dt; p.y += p.tdVy*dt; p.vx = p.tdVx; p.vy = p.tdVy; }
     p.x = clamp(p.x, 0.2, FL-0.2); p.y = clamp(p.y, 0.9, FW-0.25);
   }
+  /* a dive knocks over anyone on the scoring team (the diver's opponents), never his own teammates (user, v1.13) */
   for (const d of G.all){ if (!d.dive || d.team === T) continue;
     for (const p of G.all){ if (p.team !== T || p.dive || p.fallT > 0 || p.downT > 0 || dist(p,d) >= TACKLE) continue;
       p.fallT = 0.4; p.backFall = true; p.vx = p.vy = 0; sfx('tackle');
