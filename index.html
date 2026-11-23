@@ -131,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.07</small>
+    <small id="ver">Version 1.08</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -529,7 +529,7 @@ function murmurLevel(lvl){
     MURMUR.g.gain.exponentialRampToValueAtTime(Math.max(0.0001, lvl), t+0.6);
   } catch (e) {}
 }
-/* "DE-FENSE!" chant from the crowd on 3rd down when the home team is on defense, from the huddle to the snap (user, v0.61) */
+/* "DE-FENSE!" chant from the crowd on 3rd and 4th down (4th added v1.08) when the home team is on defense, from the huddle to the snap (user, v0.61) */
 let CHANT = null;
 /* the chant (user's pick "C", v1.03): about 24 voices through vowel filters, DEE and FENSE on the same pitch, then two
    crowd claps, all four 0.49 s apart, with a stadium echo. No "S" hiss at the end (it came out as a click). */
@@ -1569,7 +1569,7 @@ function allGuessedCheck(){
 function update(dt){
   { const on = G && !DEMO && G.phase !== 'gameover';   // crowd (user, v0.61): murmur all game, a little quieter while the ball is live
     murmurLevel(on ? (G.phase === 'live' ? 0.08 : 0.12) : 0);
-    chantTick(on && !G.paused && G.down === 3 && G.def === G.home && ['formation','hwalk','routes','guess','align','presnap'].includes(G.phase)); }
+    chantTick(on && !G.paused && (G.down === 3 || G.down === 4) && G.def === G.home && ['formation','hwalk','routes','guess','align','presnap'].includes(G.phase)); }
   if (!G || G.paused) { input.btnEdge = input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null; return; }
   if (G.banner){ G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
   if (G.catchFlash) G.catchFlash = Math.max(0, G.catchFlash - dt);
