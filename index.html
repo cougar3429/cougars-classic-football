@@ -131,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.17</small>
+    <small id="ver">Version 1.18</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -574,7 +574,7 @@ function chantOnce(t){
       const n = AC.createBufferSource(); n.buffer = noiseBuf(dur+0.05); const g = AC.createGain(); env(g, st, 0.015, peak, dur);
       n.connect(fl); fl.connect(g); g.connect(bus); n.start(st); n.stop(st+dur+0.05); };
   hiss(t, 0.035, 400, 0.25, 'lowpass');          // "D"
-  hiss(t+0.44, 0.09, 2200, 0.22, 'bandpass');     // "F"
+  // (the "F" hiss was removed, user v1.18: it sounded like a third clap)
   for (let k=0;k<24;k++){
     const p = 200*(1 + (Math.random()-0.5)*0.08), jit = (Math.random()-0.5)*0.04, vib = 4.5 + Math.random()*1.5;
     [[DEE, t+0.03, 0.32], [FEN, t+0.52, 0.30], [NN, t+0.78, 0.11]].forEach(([dst, st, dur]) => {
@@ -627,6 +627,25 @@ function crowdReact(team, big, fd){   // home team's good play: cheers; visitors
 function crowdCut(bus){ try { if (!bus || !AC) return; const t = AC.currentTime; bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(bus.gain.value, t); bus.gain.linearRampToValueAtTime(0, t+0.3); } catch (e) {} }
 function sfx(name){ try { if (AC && FX && VOL.fx > 0) SFX[name](); } catch (e) {} }
 function playLock(){ sfx('lock'); }
+/* taunt (user, v1.18): a mocking two-note "HA-ha!" in a low, nasal synthesized voice, one of two versions at random each press. Plays on the Voice slider. */
+function sayHaha(){
+  try { if (!AC || VOL.voice <= 0) return; const t0 = AC.currentTime + 0.01;
+    const out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
+    const ha = (t, pts, dur, peak, breath) => {
+      if (breath){ const n = AC.createBufferSource(); n.buffer = noiseBuf(0.09); const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 0.8;   // the "h"
+        const ng = AC.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(peak*0.5, t+0.03); ng.gain.exponentialRampToValueAtTime(0.0001, t+0.09); n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t); }
+      const bus = AC.createGain(); bus.gain.setValueAtTime(0.0001, t); bus.gain.setValueAtTime(0.0001, t+0.05); bus.gain.exponentialRampToValueAtTime(peak, t+0.08);
+      bus.gain.setValueAtTime(peak, t+dur-0.08); bus.gain.exponentialRampToValueAtTime(0.0001, t+dur); bus.connect(out);
+      const src = AC.createOscillator(); src.type = 'sawtooth'; src.frequency.setValueAtTime(pts[0][1], t); src.frequency.setValueAtTime(pts[0][1], t+0.05);
+      for (let i=1;i<pts.length;i++) src.frequency.exponentialRampToValueAtTime(pts[i][1], t+0.05+pts[i][0]);
+      const vib = AC.createOscillator(), vg = AC.createGain(); vib.frequency.value = 5.5; vg.gain.value = pts[0][1]*0.015; vib.connect(vg); vg.connect(src.frequency);
+      [[650,1,7],[1100,0.6,9],[2600,0.25,10],[250,0.5,6]].forEach(([f, a, q]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+        const g = AC.createGain(); g.gain.value = a*4; src.connect(bp); bp.connect(g); g.connect(bus); });
+      src.start(t); vib.start(t); src.stop(t+dur+0.02); vib.stop(t+dur+0.02); };
+    if (Math.random() < 0.5){ ha(t0, [[0, 210], [0.21, 200]], 0.29, 0.55); ha(t0+0.36, [[0, 165], [0.57, 150]], 0.64, 0.5); }   // the slow one, about 1 s
+    else { ha(t0, [[0, 230], [0.15, 220]], 0.22, 0.55, true); ha(t0+0.24, [[0, 180], [0.4, 165]], 0.48, 0.5, true); }        // "B": quicker, with a breathy "h", about 0.7 s (user, v1.18)
+  } catch (e) {}
+}
 function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant the ball is snapped (user, v0.31; quicker, no clicks v0.35)
   try { if (!AC || VOL.voice <= 0) return; const t0 = AC.currentTime;
     const out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
@@ -1634,7 +1653,7 @@ function tdLive(dt){
   /* (user, v1.11) the computer goes after your scorer 65% of the time, with one dive only */
   if (G.tdChaser === null && isHuman(T)){ G.tdChaser = false;
     if (rnd() < 0.65){ let best = null, bd = 1e9; for (const o of G.all){ if (o.team === T || isHuman(o.team)) continue; const k = dist(o,S); if (k < bd){ bd = k; best = o; } } G.tdChaser = best || false; } }
-  if (me && me.team !== T && input.btnEdge) tryDive(me);
+  if (me && me.team !== T && input.btnEdge){ if (G.tdKnocked) sayHaha(); else tryDive(me); }   // once you've knocked the scorer down, the button taunts instead of diving (user, v1.18)
   for (const p of G.all){
     if (p.dive || p.downT > 0 || p.fallT > 0) continue;
     if (p === me){ if (!(p === S && spiking)) humanMove(p, roleSpd(p), dt); else p.vx = p.vy = 0; }
@@ -1750,6 +1769,7 @@ function controlledPlayer(){
 function btnLabel(){
   if (!G) return '';
   if (hornAllowed()) return 'HORN';
+  if (G.phase === 'dead' && G.tdBy && G.tdCtl && G.tdCtl.team !== G.tdBy.team) return G.tdKnocked ? 'TAUNT' : 'DIVE';   // their touchdown celebration (v1.18)
   if (isHuman(G.off) && ['hwalk','guess','routes'].includes(G.phase)) return 'RESET';   // pre-play decisions (user, v0.36)
   if (G.phase==='guess' && isHuman(G.def) && G.waiting) return 'BLITZ';   // button alone = this DB blitzes (user, v0.61)
   if (G.phase==='presnap' && isHuman(G.off)) return 'HIKE';
