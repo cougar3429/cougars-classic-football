@@ -131,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.06</small>
+    <small id="ver">Version 1.07</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -469,12 +469,12 @@ function crowdCheer(big, fd){   // fd: a first down gets a 4 s cheer (user, v1.0
     const t = AC.currentTime;
     const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.7;
     /* a touchdown's roar lasts 5 s (user, v1.03; was 2.5 s) */
-    const L = big ? 7 : fd ? 4 : 1.6;   // touchdown 7 s (user, v1.05), first down 4 s, other good plays 1.6 s
+    const L = big ? 7 : fd ? 4 : 2 + Math.random();   // touchdown 7 s (user, v1.05), first down / sack 4 s, other good plays 2-3 s (user, v1.07)
     const n = AC.createBufferSource(); n.buffer = noiseBuf(L+0.1); const g = AC.createGain();
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t+0.5); g.gain.setValueAtTime(0.4, t+L-(big||fd?0.9:0.7)); g.gain.exponentialRampToValueAtTime(0.0001, t+L);
     n.connect(bp); bp.connect(g); g.connect(CROWD); n.start(t); n.stop(t+L+0.1);
     for (let k=0, nW = Math.max(2, Math.round(L*1.5)); k<nW; k++) fingerWhistle(t + 0.15 + Math.random()*Math.max(0.3, L-1.3));   // whistles (user, v1.05)
-    for (let k=0;k<(big?20:fd?11:4);k++){ const st = t + 0.2 + Math.random()*(big?5.8:fd?3.2:0.8), o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
+    for (let k=0;k<(big?20:fd?11:4);k++){ const st = t + 0.2 + Math.random()*(big?5.8:fd?3.2:L-0.8), o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
       o.type = 'triangle'; o.frequency.setValueAtTime(500+Math.random()*300, st); o.frequency.exponentialRampToValueAtTime(900+Math.random()*400, st+0.35);
       env(og, st, 0.05, 0.05, 0.35); o.connect(og); og.connect(CROWD); o.start(st); o.stop(st+0.5); }
     if (big) [0, 0.32].forEach((dt2, k) => { const st = t + 0.15 + dt2; [233, 294, 349].forEach(f => { const o = AC.createOscillator(), og = AC.createGain();
@@ -483,9 +483,9 @@ function crowdCheer(big, fd){   // fd: a first down gets a 4 s cheer (user, v1.0
   } catch (e) {}
 }
 /* crowd booing (user's picks "B" and "C", v1.05, chosen at random each time): about 30 voices on an "oo" vowel, sliding
-   down, with the stadium echo. "C" comes in waves: it swells, dips and swells again. Touchdown 7 s, first down 4 s, else 1.8 s. */
+   down, with the stadium echo. "C" comes in waves: it swells, dips and swells again. Touchdown 7 s, first down / sack 4 s, else 2-3 s. */
 function crowdBoo(big, fd){
-  try { if (!AC || !CROWD || VOL.crowd <= 0) return; const t = AC.currentTime, len = big ? 7 : fd ? 4 : 1.8, waves = Math.random() < 0.5;
+  try { if (!AC || !CROWD || VOL.crowd <= 0) return; const t = AC.currentTime, len = big ? 7 : fd ? 4 : 2 + Math.random(), waves = Math.random() < 0.5;
     const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1.6, t+0.4);
     if (waves){ g.gain.linearRampToValueAtTime(0.8, t+len*0.375); g.gain.linearRampToValueAtTime(1.6, t+len*0.575); }
     g.gain.setValueAtTime(1.6, t+len-0.7); g.gain.exponentialRampToValueAtTime(0.0001, t+len); g.connect(CROWD); g.connect(chantRev());
@@ -1486,7 +1486,7 @@ function endPlay(type, info){
   else if (type === 'INTDOWN' && !info.text) good = def;
   else if (type === 'DOWN'){ if (info.sack) good = def;
     else { const gain = (clamp(info.x, 10.5, 109.5) - G.los)*d; fd = gain >= G.toGo - 0.01; if (gain >= G.toGo - 0.01 || gain >= 5) good = off; else if (gain < 2) good = def; } }
-  crowdReact(good, type === 'TD', fd);   // every first down: a 4 s cheer or boo (user, v1.05)
+  crowdReact(good, type === 'TD', fd || (type === 'DOWN' && !!info.sack));   // every first down (user, v1.05) and every sack (user, v1.07): a 4 s cheer or boo
   if (!DEMO && Math.random() < 0.25) playRiff();   // stadium music on about 1 in 4 dead balls
   switch(type){
     case 'TD': { const T = info.team; G.score[T] += 7; G.stats.td[T]++; if (T === def) G.stats.pick6++;
