@@ -131,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.04</small>
+    <small id="ver">Version 1.05</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -445,15 +445,16 @@ function hornOn(){   // stadium air horn: two loud detuned reedy tones, held whi
 function hornOff(){ try { if (!HORN) return; const t = AC.currentTime, h = HORN; HORN = null;
   h.g.gain.cancelScheduledValues(t); h.g.gain.setValueAtTime(h.g.gain.value || 0.35, t); h.g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
   h.oscs.forEach(o => o.stop(t+0.15)); } catch (e) {} }
-function crowdCheer(big){   // crowd roar; a touchdown gets the long one with a couple of horn blasts
+function crowdCheer(big, fd){   // fd: a first down gets a 4 s cheer (user, v1.05)   // crowd roar; a touchdown gets the long one with a couple of horn blasts
   try { if (!AC || !CROWD || VOL.crowd <= 0) return;
     const t = AC.currentTime;
     const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.7;
     /* a touchdown's roar lasts 5 s (user, v1.03; was 2.5 s) */
-    const n = AC.createBufferSource(); n.buffer = noiseBuf(big ? 5.1 : 1.7); const g = AC.createGain();
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t+0.5); g.gain.setValueAtTime(0.4, t+(big?4.1:0.9)); g.gain.exponentialRampToValueAtTime(0.0001, t+(big?5.0:1.6));
-    n.connect(bp); bp.connect(g); g.connect(CROWD); n.start(t); n.stop(t+(big?5.1:1.7));
-    for (let k=0;k<(big?14:4);k++){ const st = t + 0.2 + Math.random()*(big?4.0:0.8), o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
+    const L = big ? 7 : fd ? 4 : 1.6;   // touchdown 7 s (user, v1.05), first down 4 s, other good plays 1.6 s
+    const n = AC.createBufferSource(); n.buffer = noiseBuf(L+0.1); const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t+0.5); g.gain.setValueAtTime(0.4, t+L-(big||fd?0.9:0.7)); g.gain.exponentialRampToValueAtTime(0.0001, t+L);
+    n.connect(bp); bp.connect(g); g.connect(CROWD); n.start(t); n.stop(t+L+0.1);
+    for (let k=0;k<(big?20:fd?11:4);k++){ const st = t + 0.2 + Math.random()*(big?5.8:fd?3.2:0.8), o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
       o.type = 'triangle'; o.frequency.setValueAtTime(500+Math.random()*300, st); o.frequency.exponentialRampToValueAtTime(900+Math.random()*400, st+0.35);
       env(og, st, 0.05, 0.05, 0.35); o.connect(og); og.connect(CROWD); o.start(st); o.stop(st+0.5); }
     if (big) [0, 0.32].forEach((dt2, k) => { const st = t + 0.15 + dt2; [233, 294, 349].forEach(f => { const o = AC.createOscillator(), og = AC.createGain();
@@ -461,18 +462,23 @@ function crowdCheer(big){   // crowd roar; a touchdown gets the long one with a 
       env(og, st, 0.02, 0.07, 0.28); o.connect(lp); lp.connect(og); og.connect(CROWD); o.start(st); o.stop(st+0.35); }); });
   } catch (e) {}
 }
-function crowdBoo(big){   // crowd booing: lots of low "boooo" voices swelling and fading
-  try { if (!AC || !CROWD || VOL.crowd <= 0) return; const t = AC.currentTime, len = big ? 5 : 1.8;   // a touchdown's boos last 5 s (user, v1.03; was 2.8 s)
-    const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t+0.35); g.gain.setValueAtTime(0.5, t+len-0.6); g.gain.exponentialRampToValueAtTime(0.0001, t+len);
-    const f1 = AC.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 330; f1.Q.value = 2.5;
-    const f2 = AC.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 800; f2.Q.value = 4; const f2g = AC.createGain(); f2g.gain.value = 0.35;
-    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
-    lp.connect(f1); lp.connect(f2); f2.connect(f2g); f1.connect(g); f2g.connect(g); g.connect(CROWD);
-    for (let k=0;k<14;k++){ const o = AC.createOscillator(), og = AC.createGain(), st = t + Math.random()*0.25, f = 95 + Math.random()*90;
-      o.type = 'sawtooth'; o.frequency.setValueAtTime(f*1.04, st); o.frequency.linearRampToValueAtTime(f*0.93, t+len);
-      const vib = AC.createOscillator(), vg = AC.createGain(); vib.frequency.value = 4 + Math.random()*3; vg.gain.value = f*0.02; vib.connect(vg); vg.connect(o.frequency);
-      og.gain.value = 0.12; o.connect(og); og.connect(lp); o.start(st); vib.start(st); o.stop(t+len+0.05); vib.stop(t+len+0.05); }
-    const nb = AC.createBufferSource(); nb.buffer = noiseBuf(len); const ng = AC.createGain(); ng.gain.value = 0.25; nb.connect(ng); ng.connect(lp); nb.start(t);
+/* crowd booing (user's picks "B" and "C", v1.05, chosen at random each time): about 30 voices on an "oo" vowel, sliding
+   down, with the stadium echo. "C" comes in waves: it swells, dips and swells again. Touchdown 7 s, first down 4 s, else 1.8 s. */
+function crowdBoo(big, fd){
+  try { if (!AC || !CROWD || VOL.crowd <= 0) return; const t = AC.currentTime, len = big ? 7 : fd ? 4 : 1.8, waves = Math.random() < 0.5;
+    const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1.6, t+0.4);
+    if (waves){ g.gain.linearRampToValueAtTime(0.8, t+len*0.375); g.gain.linearRampToValueAtTime(1.6, t+len*0.575); }
+    g.gain.setValueAtTime(1.6, t+len-0.7); g.gain.exponentialRampToValueAtTime(0.0001, t+len); g.connect(CROWD); g.connect(chantRev());
+    const f1 = AC.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 320; f1.Q.value = 3;
+    const f2 = AC.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 800; f2.Q.value = 5; const f2g = AC.createGain(); f2g.gain.value = 0.45;
+    f1.connect(g); f2.connect(f2g); f2g.connect(g);
+    for (let k=0;k<30;k++){ const p = 150 + Math.random()*90, st = t + Math.random()*0.3, o = AC.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(p*1.06, st); o.frequency.exponentialRampToValueAtTime(p*0.88, t+len);
+      const vib = AC.createOscillator(), vg = AC.createGain(); vib.frequency.value = 4 + Math.random()*2; vg.gain.value = p*0.015; vib.connect(vg); vg.connect(o.frequency);
+      const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
+      const og = AC.createGain(); og.gain.value = 0.06; o.connect(lp); lp.connect(og); og.connect(f1); og.connect(f2);
+      o.start(st); vib.start(st); o.stop(t+len+0.05); vib.stop(t+len+0.05); }
+    const n = AC.createBufferSource(); n.buffer = noiseBuf(len); const ng = AC.createGain(); ng.gain.value = 0.08; n.connect(ng); ng.connect(f1); n.start(t);
   } catch (e) {}
 }
 /* steady crowd murmur under the whole game; a little quieter while the ball is live (user, v0.61) */
@@ -575,8 +581,8 @@ function playRiff(){
 }
 function musicStop(){ try { if (!MUSICNOW) return; const t = AC.currentTime, b = MUSICNOW; MUSICNOW = null;
   b.gain.cancelScheduledValues(t); b.gain.setValueAtTime(b.gain.value, t); b.gain.linearRampToValueAtTime(0, t+0.2); } catch (e) {} }
-function crowdReact(team, big){   // home team's good play: cheers; visitors' good play: boos (user, v0.61)
-  if (team == null || !G || G.home == null) return; if (team === G.home) crowdCheer(big); else crowdBoo(big); }
+function crowdReact(team, big, fd){   // home team's good play: cheers; visitors' good play: boos (user, v0.61)
+  if (team == null || !G || G.home == null) return; if (team === G.home) crowdCheer(big, fd); else crowdBoo(big, fd); }
 function sfx(name){ try { if (AC && FX && VOL.fx > 0) SFX[name](); } catch (e) {} }
 function playLock(){ sfx('lock'); }
 function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant the ball is snapped (user, v0.31; quicker, no clicks v0.35)
@@ -673,7 +679,7 @@ function startHuddle(){
   const NUMS = {QB:[7], WR:[81,84,88], OL:[62,70,75], LB:[54], DB:[21,24,31], DL:[90,93,97]}, seen = {};
   for (const p of G.all){ const k = p.role, i = seen[k] = (seen[k]||0); seen[k]++; p.num = NUMS[k][i % NUMS[k].length]; p.skin = (p.num*7 + p.team*3) % 5; }
   for (const w of G.wrs) w.throwKey = null;
-  faceCenters(); G.downed = null; G.brokeAt = null; G.tdBy = null; G.spike = null; G.armsUp = false; G.armsT = 0; G.throwT = -9;
+  faceCenters(); G.downed = null; G.downTacklers = null; G.brokeAt = null; G.tdBy = null; G.spike = null; G.armsUp = false; G.armsT = 0; G.throwT = -9;
   G.ball = {state:'spot'};   // the ball sits on the line of scrimmage until the center snaps it (user, v0.63)
   G.guessesDone = false; G.returning = false;
   G.phase = 'formation'; G.mode = null; G.t = 0; G.visit = 0; G.wait = 0; G.waiting = false; G.formation = null; G.ctl = null;
@@ -1320,7 +1326,7 @@ function sim(dt){
     const o = c.touchedInAir ? null : G.all.find(o => o.team !== T && !(o.blockedT > 0) && dist(o,c) < TACKLE);
     if (c.touchedInAir || o){
       sfx('tackle');
-      if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.15) return fumble(c);   // first contact was a dive: 15% fumble (user, v0.92; was 20%)
+      if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.12) return fumble(c);   // first contact was a dive: 12% fumble (user, v1.05; was 15%)
       G.downEarly = true;
       const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
       if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack:false});
@@ -1339,7 +1345,8 @@ function sim(dt){
     // not evaded: the tacklers lock on and grapple him for 0.3 s before he goes down (user, v0.38)
     sfx('tackle');
     /* a dive that's the first contact on the runner this play (alone or at the same moment as others) forces a fumble 15% of the time (user, v0.92; was 20%) */
-    if (!c.hitBefore && hitters.some(h => h.dive) && rnd() < 0.15) return fumble(c);
+    /* first contact this play: a dive knocks it loose 12% of the time, a regular tackle 6% (user, v1.05), sacks included */
+    if (!c.hitBefore && rnd() < (hitters.some(h => h.dive) ? 0.12 : 0.06)) return fumble(c);
     // a diver doesn't grapple: he's at the runner's feet and trips him, so the runner slows and falls by himself (user, v0.40)
     const holders = hitters.filter(h => !h.dive);
     if (!holders.length){   // tripped by a dive: he goes down right there, straight into the 0.4 s fall (user, v0.41)
@@ -1360,7 +1367,8 @@ function grappleStep(dt){
   if ((c.x-goalX(T))*dirT >= 0){ G.grapple = null; return endPlay('TD', {team:T}); }
   g.t += dt;
   if (g.t < 0.3) return;
-  G.grapple = null;
+  G.grapple = null; G.downTacklers = g.tacklers;   // the tacklers go down with him (user, v1.05), falling onto him
+  for (const h of g.tacklers){ h.facing = Math.sign(c.x - h.x) || -dirT; h.vx = h.vy = 0; }
   const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
   if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack: g.sack});
   return endPlay('INTDOWN', {x: inOwnEZ ? null : c.x});
@@ -1452,13 +1460,13 @@ function endPlay(type, info){
   if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
   /* whose good play was it? (user, v0.61) Offense: touchdown, first down, 5+ yards. Defense: sack, interception, fumble recovered
      from the other team, safety, or holding the gain under 2 yards (not a first down or TD). An incomplete pass counts for nobody. */
-  let good = null;
+  let good = null, fd = false;
   if (type === 'TD') good = info.team;
   else if (type === 'SAFETY') good = def;
   else if (type === 'INTDOWN' && !info.text) good = def;
   else if (type === 'DOWN'){ if (info.sack) good = def;
-    else { const gain = (clamp(info.x, 10.5, 109.5) - G.los)*d; if (gain >= G.toGo - 0.01 || gain >= 5) good = off; else if (gain < 2) good = def; } }
-  crowdReact(good, type === 'TD');
+    else { const gain = (clamp(info.x, 10.5, 109.5) - G.los)*d; fd = gain >= G.toGo - 0.01; if (gain >= G.toGo - 0.01 || gain >= 5) good = off; else if (gain < 2) good = def; } }
+  crowdReact(good, type === 'TD', fd);   // every first down: a 4 s cheer or boo (user, v1.05)
   if (!DEMO && Math.random() < 0.25) playRiff();   // stadium music on about 1 in 4 dead balls
   switch(type){
     case 'TD': { const T = info.team; G.score[T] += 7; G.stats.td[T]++; if (T === def) G.stats.pick6++;
@@ -1770,7 +1778,7 @@ function poseFor(p, moving, spd){
             arms:[{u:0.35+0.6*(1-g),e:0.2},{u:0.25+0.6*(1-g),e:0.2}], lying:true, dove:true, fall:1-g};   // pushing up off the turf
   }
   if (G.phase === 'dead' || G.phase === 'gameover'){
-    if (p === G.downed){ const f = Math.min(1, (performance.now() - (G.downAt||0))/400);
+    if (p === G.downed || (G.downTacklers && G.downTacklers.includes(p))){ const f = Math.min(1, (performance.now() - (G.downAt||0))/400);
       return tackleFall(f); }
     if (G.tdBy && p.team === G.tdBy.team) return celebrate(p, performance.now()/1000);   // the scoring team celebrates (user, v0.39)
   }
@@ -1860,7 +1868,7 @@ function drawAthlete(p, x, y, dirX, pose, T){
   ctx.save(); ctx.translate(x, y);
   if (pose.lying){   // going down: a 0.4 s fall from upright to prone (user, v0.38)
     const f = pose.fall == null ? 1 : pose.fall, e = f*f*(3-2*f);
-    const fwd = (p === G.downed || pose.dove) ? 1 : -1;   // ball carriers (v0.46) and divers land face first, the way they were going
+    const fwd = (p === G.downed || pose.dove || (G.downTacklers && G.downTacklers.includes(p))) ? 1 : -1;   // ball carriers (v0.46) and divers land face first, the way they were going
     ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(fwd*dirX*Math.PI/2*0.96*e); }
   /* spin move (user, v0.29; redone v0.81): a real 360° turn over 0.4 s. He turns from his side view to face the camera,
      then shows his other side, then his back (number and the back of the helmet), then comes around to his side again. */
@@ -2211,6 +2219,8 @@ function frame(now){
 if (DEMO){ $('title').hidden = true; newGame(); }
 requestAnimationFrame(frame);
 window.__test = { get G(){ return G; }, update, newGame, input, btnDown, btnUp, startGame };
+/* sound stops when the game isn't on screen (another app, another tab, phone locked) and comes back when it is (v1.05) */
+document.addEventListener('visibilitychange', () => { try { if (!AC) return; if (document.hidden) AC.suspend(); else AC.resume(); } catch (e) {} });
 </script>
 </body>
 </html>
