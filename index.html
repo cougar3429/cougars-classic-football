@@ -131,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.03</small>
+    <small id="ver">Version 1.04</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -505,31 +505,49 @@ function murmurLevel(lvl){
 }
 /* "DE-FENSE!" chant from the crowd on 3rd down when the home team is on defense, from the huddle to the snap (user, v0.61) */
 let CHANT = null;
+/* the chant (user's pick "C", v1.03): about 24 voices through vowel filters, DEE and FENSE on the same pitch, then two
+   crowd claps, all four 0.49 s apart, with a stadium echo. No "S" hiss at the end (it came out as a click). */
+const CHANT_VOWELS = { ee:[[300,1,6],[2250,0.45,10],[2950,0.25,12]], eh:[[580,1,6],[1800,0.5,10],[2550,0.25,12]], n:[[260,1,5],[1750,0.12,10]] };
+let CHANT_REV = null;
+function chantRev(){
+  if (CHANT_REV && CHANT_REV.ctx === AC) return CHANT_REV.node;
+  const rev = AC.createConvolver(), len = Math.floor(AC.sampleRate*1.6), ir = AC.createBuffer(2, len, AC.sampleRate);
+  for (let c=0;c<2;c++){ const d = ir.getChannelData(c); for (let i=0;i<len;i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/len, 3); }
+  rev.buffer = ir; const rg = AC.createGain(); rg.gain.value = 0.35; rev.connect(rg); rg.connect(CROWD);
+  CHANT_REV = {ctx:AC, node:rev}; return rev;
+}
 function chantOnce(t){
-  const bus = AC.createGain(); bus.gain.value = 1; bus.connect(CROWD); CHANT.buses.push(bus);
-  const vowel = (st, dur, peak, f1, f2) => { const g = AC.createGain(); g.gain.setValueAtTime(0.0001, st); g.gain.exponentialRampToValueAtTime(peak, st+0.03);
-      g.gain.setValueAtTime(peak, st+dur-0.05); g.gain.exponentialRampToValueAtTime(0.0001, st+dur);
-      const a = AC.createBiquadFilter(); a.type = 'bandpass'; a.frequency.value = f1; a.Q.value = 5;
-      const b = AC.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = f2; b.Q.value = 8; const bg = AC.createGain(); bg.gain.value = 0.5;
-      a.connect(g); b.connect(bg); bg.connect(g); g.connect(bus); return [a, b]; };
-  const hiss = (st, dur, f, peak, type) => { const fl = AC.createBiquadFilter(); fl.type = type || 'highpass'; fl.frequency.value = f;
-      const n = AC.createBufferSource(); n.buffer = noiseBuf(dur); const g = AC.createGain(); env(g, st, 0.01, peak, dur);
+  const bus = AC.createGain(); bus.gain.value = 0.85; bus.connect(CROWD); bus.connect(chantRev()); CHANT.buses.push(bus);
+  const bank = (name, st, dur, peak) => { const g = AC.createGain(); g.gain.setValueAtTime(0.0001, st); g.gain.exponentialRampToValueAtTime(peak, st+0.04);
+      g.gain.setValueAtTime(peak, st+dur-0.06); g.gain.exponentialRampToValueAtTime(0.0001, st+dur); g.connect(bus);
+      return CHANT_VOWELS[name].map(([f, a, q]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+        const ag = AC.createGain(); ag.gain.value = a*3; bp.connect(ag); ag.connect(g); return bp; }); };
+  const DEE = bank('ee', t+0.03, 0.30, 0.55), FEN = bank('eh', t+0.52, 0.28, 0.6), NN = bank('n', t+0.78, 0.09, 0.25);
+  const hiss = (st, dur, f, peak, type) => { const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = 0.7;
+      const n = AC.createBufferSource(); n.buffer = noiseBuf(dur+0.05); const g = AC.createGain(); env(g, st, 0.015, peak, dur);
       n.connect(fl); fl.connect(g); g.connect(bus); n.start(st); n.stop(st+dur+0.05); };
-  const de = vowel(t+0.03, 0.2, 0.5, 530, 1850), fen = vowel(t+0.5, 0.26, 0.6, 560, 1800), nn = vowel(t+0.74, 0.08, 0.35, 250, 2400);
-  hiss(t, 0.04, 500, 0.15, 'lowpass');            // "D"
-  hiss(t+0.42, 0.09, 1800, 0.18);                // "F"
-  hiss(t+0.8, 0.17, 4500, 0.14);                 // "SE"
-  for (let k=0;k<10;k++){ const f = 140 + Math.random()*140, jit = (Math.random()-0.5)*0.05;
-    [[de, t+0.03, 0.22, 1.0], [fen, t+0.5, 0.26, 1.12], [nn, t+0.74, 0.09, 1.1]].forEach(([dst, st, dur, up]) => {
-      const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f*up, st+jit); const og = AC.createGain(); og.gain.value = 0.14;
-      o.connect(og); dst.forEach(x => og.connect(x)); o.start(Math.max(AC.currentTime, st+jit)); o.stop(st+dur+0.08); }); }
+  hiss(t, 0.035, 400, 0.25, 'lowpass');          // "D"
+  hiss(t+0.44, 0.09, 2200, 0.22, 'bandpass');     // "F"
+  for (let k=0;k<24;k++){
+    const p = 200*(1 + (Math.random()-0.5)*0.08), jit = (Math.random()-0.5)*0.04, vib = 4.5 + Math.random()*1.5;
+    [[DEE, t+0.03, 0.32], [FEN, t+0.52, 0.30], [NN, t+0.78, 0.11]].forEach(([dst, st, dur]) => {
+      const s0 = Math.max(AC.currentTime, st+jit), o = AC.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(p*1.03, s0); o.frequency.exponentialRampToValueAtTime(p*0.98, s0+dur);
+      const lv = AC.createOscillator(), lg = AC.createGain(); lv.frequency.value = vib; lg.gain.value = p*0.012; lv.connect(lg); lg.connect(o.frequency);
+      const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000;
+      const og = AC.createGain(); og.gain.value = 0.045; o.connect(lp); lp.connect(og); dst.forEach(x => og.connect(x));
+      o.start(s0); lv.start(s0); o.stop(s0+dur+0.08); lv.stop(s0+dur+0.08); }); }
+  [0.03+0.98, 0.03+1.47].forEach(ct => { for (let k=0;k<12;k++){ const st = t + ct + Math.random()*0.03;   // CLAP, CLAP
+      const fl = AC.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = 1100 + Math.random()*900; fl.Q.value = 1.2;
+      const n = AC.createBufferSource(); n.buffer = noiseBuf(0.06); const g = AC.createGain(); env(g, st, 0.003, 0.12, 0.05);
+      n.connect(fl); fl.connect(g); g.connect(bus); n.start(st); n.stop(st+0.07); } });
 }
 function chantTick(on){
   try { if (!AC || !CROWD) return;
     if (!on){ if (CHANT){ const t = AC.currentTime; CHANT.buses.forEach(b => { b.gain.cancelScheduledValues(t); b.gain.setValueAtTime(b.gain.value, t); b.gain.linearRampToValueAtTime(0, t+0.15); }); CHANT = null; } return; }
     if (VOL.crowd <= 0) return;
     if (!CHANT) CHANT = {next: AC.currentTime + 0.05, buses: []};
-    if (AC.currentTime > CHANT.next - 0.1){ chantOnce(CHANT.next); CHANT.next += 1.3; CHANT.buses = CHANT.buses.slice(-3); }
+    if (AC.currentTime > CHANT.next - 0.1){ chantOnce(CHANT.next); CHANT.next += 1.96; CHANT.buses = CHANT.buses.slice(-3); }   // DEE, FENSE, CLAP, CLAP: four beats of 0.49 s (v1.03)
   } catch (e) {}
 }
 /* stadium music (user, v0.61): short original organ riffs, on about 1 in 4 dead balls, never during a live play */
