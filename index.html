@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.21</small>
+    <small id="ver">Version 1.22</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -645,6 +645,23 @@ function sayHaha(){
       src.start(t); vib.start(t); src.stop(t+dur+0.02); vib.stop(t+dur+0.02); };
     if (Math.random() < 0.5){ ha(t0, [[0, 210], [0.21, 200]], 0.29, 0.55); ha(t0+0.36, [[0, 165], [0.57, 150]], 0.64, 0.5); }   // the slow one, about 1 s
     else { ha(t0, [[0, 230], [0.15, 220]], 0.22, 0.55, true); ha(t0+0.24, [[0, 180], [0.4, 165]], 0.48, 0.5, true); }        // "B": quicker, with a breathy "h", about 0.7 s (user, v1.18)
+  } catch (e) {}
+}
+/* "Ugh!" (user's pick, v1.22): a grunt each time someone lands on the pile, short or long at random, at a random pitch like a
+   different player each time. The first version (mostly voice) and an airy, breathy one played together. Voice slider. */
+function sayUgh(){
+  try { if (!AC || VOL.voice <= 0) return; const t = AC.currentTime + 0.01, out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
+    const grunt = (dur, f0, drop, peak, voice, breath, q) => {
+      const bus = AC.createGain(); bus.gain.setValueAtTime(0.0001, t); bus.gain.exponentialRampToValueAtTime(peak, t+0.02); bus.gain.setValueAtTime(peak, t+dur*0.4); bus.gain.exponentialRampToValueAtTime(0.0001, t+dur); bus.connect(out);
+      const ins = [[640,1,6],[1190,0.6,8],[2400,0.3,10]].map(([f, a, qq]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = qq*q; const g = AC.createGain(); g.gain.value = a*4; bp.connect(g); g.connect(bus); return bp; });
+      const src = AC.createOscillator(); src.type = 'sawtooth'; src.frequency.setValueAtTime(f0, t); src.frequency.exponentialRampToValueAtTime(f0*drop, t+dur);
+      const sg = AC.createGain(); sg.gain.value = voice; src.connect(sg); ins.forEach(x => sg.connect(x));
+      const n = AC.createBufferSource(); n.buffer = noiseBuf(dur+0.05); const ng = AC.createGain(); ng.gain.value = breath; n.connect(ng); ins.forEach(x => ng.connect(x));
+      src.start(t); n.start(t); src.stop(t+dur+0.02); n.stop(t+dur+0.05); };
+    const long = Math.random() < 0.5, dur = long ? 0.45 : 0.25, f = long ? 130 + Math.random()*50 : 150 + Math.random()*60, drop = long ? 0.6 : 0.75;
+    grunt(dur, f, drop, long ? 0.32 : 0.35, 1, 0.25, 1); grunt(dur, f, drop, long ? 0.22 : 0.25, 0.22, 0.9, 0.67);
+    const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(50, t+0.12);   // thud
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t+0.005); g.gain.exponentialRampToValueAtTime(0.0001, t+0.15); o.connect(g); g.connect(out); o.start(t); o.stop(t+0.16);
   } catch (e) {}
 }
 function sayHut(){   // "Hut! Hut!" built from Web Audio so it plays the instant the ball is snapped (user, v0.31; quicker, no clicks v0.35)
@@ -1663,7 +1680,8 @@ function tdCelebration(dt){
    and the crowd flips: a 4 s boo instead of the cheer, or a 4 s cheer instead of the boos. Then all his teammates go after the
    man who knocked him down and dive on him; once one gets him, he and everyone in the pile stay down for the rest of the
    celebration (user, v1.14). He can get up and run first. */
-const FLOP_UP = 0.3;
+function ughMaybe(){ G.ughN = (G.ughN||0) + 1; if (G.ughN % 2 === 1) sayUgh(); }   // a grunt on every other landing (user, v1.22)
+const FLOP_T = 0.6, PILE_LIE = 0.5, PILE_ROLL = 0.24, PILE_RISE = 0.35;   // (user, v1.22) twice as slow: 0.6 s to get up (0.1 s flat, then rising), 0.6 s for the jump and landing
 function tdLive(dt){
   const S = G.tdBy, T = S.team, me = G.tdCtl, spiking = G.t >= TD_CELEB;
   /* (user, v1.21) the computer always goes after your scorer (was 65%): its closest man dives at him once; if he misses, the
@@ -1673,9 +1691,9 @@ function tdLive(dt){
     if (best) G.tdTried.add(best); return best || false; };
   if (G.tdChaser === null && isHuman(T)){ G.tdTried = new Set(); G.tdChaser = nextChaser(); }
   if (G.tdChaser === false && G.tdDiver && !G.tdDiver.dive){ G.tdDiver = null; if (!G.tdKnocked) G.tdChaser = nextChaser(); }   // he missed: the next man goes
-  if (me && me.team !== T && input.btnEdge){ if (G.tdKnocked) sayHaha(); else tryDive(me); }   // once you've knocked the scorer down, the button taunts instead of diving (user, v1.18)
+  if (me && me.team !== T && input.btnEdge){ if (G.tdKnocked){ if (!me.piled) sayHaha(); } else tryDive(me); }   /* no taunting once they've caught you (user, v1.22) */   // once you've knocked the scorer down, the button taunts instead of diving (user, v1.18)
   for (const p of G.all){
-    if (p.dive || p.downT > 0 || p.fallT > 0 || p.flopper) continue;
+    if (p.dive || p.downT > 0 || p.fallT > 0 || p.flopper || p.flop) continue;
     if (p === me){ if (!(p === S && spiking)) humanMove(p, roleSpd(p), dt); else p.vx = p.vy = 0; }
     else if (p === G.tdChaser){
       if (S.fallT > 0 || S.downT > 0){ p.vx = p.vy = 0; }
@@ -1703,14 +1721,39 @@ function tdLive(dt){
   /* (user, v1.14) he can get up and run from the pile. A teammate's dive that reaches him puts him down for good, along with that
      diver; a diver who misses gets up and goes after him again. */
   const K = G.tdPile;
-  if (K) for (const p of G.all){ if (p.team === T && p.dive && p.pileDive && !(K.dive) && dist(p, K) < TACKLE){ p.pileHit = true; if (!K.piled){ K.piled = true; if (!(K.downT > 0)){ K.fallT = 0.4; K.vx = K.vy = 0; } sfx('tackle'); } } }   // on his feet: he goes down (0.4 s fall)
-  /* (user, v1.19) everyone whose dive got him keeps belly flopping onto him: 0.3 s getting up (0.1 s flat, then rising), then a
-     0.3 s flop straight down onto him, over and over until the celebration ends */
+  if (K) for (const p of G.all){ if (p.team === T && p.dive && p.pileDive && !(K.dive) && dist(p, K) < TACKLE){ if (!p.pileHit) ughMaybe(); p.pileHit = true; if (!K.piled){ K.piled = true; if (!(K.downT > 0)){ K.fallT = 0.4; K.vx = K.vy = 0; } sfx('tackle'); } } }   // on his feet: he goes down (0.4 s fall)
+  /* (user, v1.19; v1.22) everyone whose dive got him keeps jumping on him, over and over until the celebration ends. Each cycle:
+     a 0.6 s jump, face first or back first (an elbow drop) in turn, landing on the pile; lying there 0.5 s, or until a 3rd body
+     lands on the stack (then the one who's been there longest rolls off and the others drop down a layer); rolling off sideways to the ground (0.24 s); getting up (0.35 s); then the next jump.
+     The pile stacks up to 3 jumpers high, not counting the man on the bottom: the first lies on the ground over him. */
+  const layer = o => o.fp === 'lie' ? o.stackLvl : (o.flop && o.flop.lvl != null ? o.flop.lvl : -1);
+  const rollOff = p => { p.fp = 'roll'; p.fpT = 0; p.rollFrom = p.stackLvl; p.rollDir = p.y < FW/2 ? 1 : -1;
+    if (p.stackLvl >= 0) for (const o of G.all) if (o.fp === 'lie' && o.stackLvl > p.stackLvl) o.stackLvl--; };   // the bodies above him drop down a layer
   for (const p of G.all){
-    if (p.pileDive && !p.dive){ if (p.pileHit){ p.flopper = true; p.downT = p.downMax = FLOP_UP; p.proneUp = false; } p.pileDive = false; }
-    if (p.flopper && !p.dive){
-      if (p.downT > FLOP_UP + 0.01){ p.downT = p.downMax = FLOP_UP; p.proneUp = false; }   // just landed a flop: the short get-up, not a dive's 0.7 s
-      else if (!(p.downT > 0) && K){ const vx = (K.x - p.x)/0.3, vy = (K.y - p.y)/0.3; p.proneUp = false; p.dive = {t:0, vx, vy}; if (Math.abs(vx) > 0.01) p.facing = Math.sign(vx); } }
+    if (p.pileDive && !p.dive){ if (p.pileHit){ p.flopper = true; p.fp = 'lie'; p.fpT = 0; p.fpBack = false; p.stackLvl = -1; p.downT = 0; } p.pileDive = false; }   // his first dive: lying on the ground beside him
+    if (!p.flopper || p.dive) continue;
+    if (p.flop){   // in the air
+      const F = p.flop; F.t += dt; const f = Math.min(1, F.t/F.T), a = clamp01((f - 0.25)/0.75);
+      F.lvl = Math.min(2, G.all.filter(o => o !== p && o.fp === 'lie' && o.stackLvl >= 0).length);   // aims for the top of the stack as it is right now
+      p.x = F.sx + (F.tx - F.sx)*a; p.y = F.sy + (F.ty - F.sy)*a; p.vx = p.vy = 0;
+      if (f >= 1){ ughMaybe(); p.flop = null; p.fp = 'lie'; p.fpT = 0; p.fpBack = F.back; p.stackLvl = F.lvl; }
+      continue; }
+    p.fpT = (p.fpT || 0) + dt;
+    if (p.fp === 'lie'){ if (p.fpT >= PILE_LIE) rollOff(p); }
+    else if (p.fp === 'roll'){ p.y = clamp(p.y + p.rollDir*(0.6/PILE_ROLL)*dt, 0.9, FW-0.25);
+      if (p.fpT >= PILE_ROLL){ p.fp = 'rise'; p.fpT = 0; p.stackLvl = -1; } }
+    else if (p.fp === 'rise'){ p.downMax = PILE_RISE + 0.1; p.downT = Math.max(0.001, PILE_RISE - p.fpT + dt); p.proneUp = false; p.backFall = false;   // drawn with the normal get-up
+      if (p.fpT >= PILE_RISE){ p.fp = null; p.downT = 0; } }
+    else if (K){ const back = (p.flopN||0) % 2 === 1; p.flopN = (p.flopN||0) + 1;   // standing: jump again; every other one is an elbow drop
+      const s = Math.sign(K.x - p.x) || 1; p.flop = {t:0, T:FLOP_T, back, lvl:null, sx:p.x, sy:p.y, tx:K.x + (back ? s : -s)*0.5, ty:K.y};   /* his middle lands over him */
+      p.facing = s; }
+  }
+  /* keep the stack tidy: bodies lying on it fill layers 0, 1, 2 from the bottom, in the order they landed */
+  { const st = G.all.filter(o => o.flopper && o.fp === 'lie' && o.stackLvl >= 0).sort((a,b) => a.stackLvl - b.stackLvl || b.fpT - a.fpT); st.forEach((o,i) => o.stackLvl = i); }
+  /* 3 stacked: first on, first off (user, v1.22) — the one who's been there longest rolls off */
+  { const st = G.all.filter(o => o.flopper && o.fp === 'lie' && o.stackLvl >= 0);
+    if (st.length >= 3){ st.sort((a,b) => b.fpT - a.fpT); rollOff(st[0]); } }
+  for (const p of G.all){
     if (p.piled && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = false; p.vx = p.vy = 0; } }
 }
 function hornAllowed(){ return G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team); }
@@ -1797,7 +1840,7 @@ function controlledPlayer(){
 function btnLabel(){
   if (!G) return '';
   if (hornAllowed()) return 'HORN';
-  if (G.phase === 'dead' && G.tdBy && G.tdCtl && G.tdCtl.team !== G.tdBy.team) return G.tdKnocked ? 'TAUNT' : 'DIVE';   // their touchdown celebration (v1.18)
+  if (G.phase === 'dead' && G.tdBy && G.tdCtl && G.tdCtl.team !== G.tdBy.team) return G.tdKnocked ? (G.tdCtl.piled ? '' : 'TAUNT') : 'DIVE';   // their touchdown celebration (v1.18)
   if (isHuman(G.off) && ['hwalk','guess','routes'].includes(G.phase)) return 'RESET';   // pre-play decisions (user, v0.36)
   if (G.phase==='guess' && isHuman(G.def) && G.waiting) return 'BLITZ';   // button alone = this DB blitzes (user, v0.61)
   if (G.phase==='presnap' && isHuman(G.off)) return 'HIKE';
@@ -1971,8 +2014,20 @@ function poseFor(p, moving, spd){
   if (p.fallT > 0){ const f = 1 - p.fallT/0.4;   // fumbler going down: the 0.4 s fall, face first
     return p.backFall ? backFall(f) : tackleFall(f); }
   if (p.pickT > 0 && G.phase === 'live') return {lean:1.0, hip:0.4, legs:[{t:0.55,k:1.3},{t:-0.25,k:0.7}], arms:[{u:0.9,e:0.15},{u:0.75,e:0.2}]};   // bending down to scoop up the fumble
+  if (p.flopper && (p.fp === 'lie' || p.fp === 'roll')){   // on the pile, then rolling off it (user, v1.22)
+    const BACK = {...POSES.stand(), lying:true, dove:false, fall:1, arms:[{u:1.5,e:2.3},{u:0.4,e:0.3}]}, FRONT = {...POSES.lying(), lying:true, dove:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]};
+    if (p.fp === 'lie') return p.fpBack ? BACK : FRONT;
+    const k = (p.fpT||0)/0.24;   // a roll: front, back, front (from his back: back, front)
+    return p.fpBack ? (k < 0.5 ? BACK : FRONT) : (k < 0.33 || k >= 0.66 ? FRONT : BACK); }
+  if (p.flop){   // jumping on the pile (user, v1.22): crouch, spring up with his arms up, then turn flat in the air and come down
+    const f = Math.min(1, p.flop.t/p.flop.T);
+    if (f < 0.25) return {lean:0.35, hip:0.33, legs:[{t:0.5,k:1.3},{t:0.3,k:1.1}], arms:[{u:-0.6,e:0.3},{u:-0.5,e:0.3}]};
+    if (f < 0.55) return {lean:0, hip:0.5, legs:[{t:0.25,k:0.7},{t:-0.1,k:0.5}], arms:[{u:2.9,e:0.1},{u:2.7,e:0.2}]};
+    const g = (f - 0.55)/0.45;
+    return p.flop.back ? {...POSES.stand(), lying:true, dove:false, fall:g, arms:[{u:1.5,e:2.3},{u:0.4,e:0.3}]}   // elbow drop: back first, elbow out
+                       : {...POSES.lying(), lying:true, dove:true, fall:g, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]}; }   // belly flop: face first, arms out
   if (p.downT > 0){   // after a dive: 0.1 s flat on the ground, then the get-up for the rest (0.6 s after a dive, user v1.03; 0.4 s for a fumbler)
-    const T = p.downMax || 0.5, el = T - p.downT, g = Math.max(0, Math.min(1, (el - 0.1)/(T - 0.1)));
+    const T = p.downMax || 0.5, el = T - p.downT; let g = Math.max(0, Math.min(1, (el - 0.1)/(T - 0.1)));
     if (p.proneUp) return p.backFall ? backFall(1 - g) : tackleFall(1 - g);   // a tackled fumbler gets up the way he went down: knees, then feet
     if (g <= 0) return {...POSES.lying(), lying:true, dove:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]};
     const kneel = Math.sin(Math.PI*g);   // knees come up under him halfway through, then straighten
@@ -2180,7 +2235,13 @@ function drawPlayer(p, mark){
     [[-9,-1,5],[-15,-4,3.5],[7,0,4.5],[13,-3,3]].forEach(([dx,dy,r], j) => { const k = 1 + 0.25*Math.sin(a*6 + j*1.7);
       ctx.beginPath(); ctx.arc(x + dx*dirX + Math.sin(a*3 + j)*1.5, y + dy - k, r*k, 0, 7); ctx.fill(); });
   }
-  p.hand = drawAthlete(p, x, y, dirX, pose, T);
+  let lift = 0;
+  const LVL_H = FIG*0.17;   // one body's thickness on the pile
+  if (p.fp === 'lie' && p.stackLvl > 0) lift = p.stackLvl*LVL_H;   // lying on the pile
+  if (p.fp === 'roll' && p.rollFrom > 0) lift = p.rollFrom*LVL_H*(1 - clamp01((p.fpT||0)/0.24));   // rolling off it down to the ground
+  if (p.flop){ const f = Math.min(1, p.flop.t/p.flop.T), a = clamp01((f - 0.2)/0.8); lift = FIG*0.9*Math.sin(Math.PI*a) + (p.flop.lvl||0)*LVL_H*clamp01((f - 0.4)/0.6);   // up in the air, landing on top of the pile
+    dirX = Math.sign(p.flop.tx - p.flop.sx) || dirX; }   // facing the pile
+  p.hand = drawAthlete(p, x, y - lift, dirX, pose, T);
 
 }
 const BALL_PX = 14, BALL_LEN_YD = BALL_PX/SX;   // the ball as drawn: 14 px long, about 1/3 yard (11-12 inches)
@@ -2323,9 +2384,9 @@ function draw(){
   const showKeys = G.phase === 'presnap' || G.phase === 'live';
   if (showKeys) drawThrowBadges(0);
   const caughtOrPicked = G.mode === 'loose' || G.mode === 'run' && G.ball.state === 'held' && G.ball.carrier !== G.qb;   // gone after a catch or interception (user, v0.25)
-  if (G.phase === 'live' && !caughtOrPicked) for (const w of G.wrs){   // dashed red ring: a DB is locked onto this receiver's route (user, v0.24)
+  if (G.phase === 'live' && !caughtOrPicked) for (const w of G.wrs){   // red ring: a DB is locked onto this receiver's route (user, v0.24)
     const db = G.dbs.find(b => b.cover === w); if (!db || db.mode !== 'mirror') continue;
-    ctx.save(); ctx.strokeStyle = '#e0413b'; ctx.lineWidth = 2.5; ctx.setLineDash([5,4]);
+    ctx.save(); ctx.strokeStyle = '#e0413b'; ctx.lineWidth = 5;   // solid and thick, nearly a solid ring (user, v1.22; was dashed, 2.5)
     ctx.beginPath(); ctx.ellipse(X(w.x), Y(w.y), FIG*0.34, FIG*0.09, 0, 0, 7); ctx.stroke(); ctx.restore(); }
   for (const p of [...G.all].sort((a,b)=>a.y-b.y)){
     let mark = null;
