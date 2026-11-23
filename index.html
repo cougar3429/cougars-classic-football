@@ -131,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.18</small>
+    <small id="ver">Version 1.19</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1627,9 +1627,10 @@ function nextPlay(){
 
 /* touchdown celebration (user, v0.94): 5 s. The scorer raises his hands while you hold the HORN button (the computer's
    scorer raises his at random). Then he spikes the ball; it bounces twice and the next drive starts. */
+const TD_CELEB = 7;   // seconds of celebrating before the spike (user, v1.19; was 5)
 const SPIKE_REL = 0.28, SPIKE_END = 1.3;   // ball leaves his hand 0.28 s into the spike; the bounces are done about 1 s later
 function tdCelebration(dt){
-  if (G.t < 5){
+  if (G.t < TD_CELEB){
     if (hornAllowed()) G.armsUp = !!input.btn;
     else { G.armsT = (G.armsT || 0) - dt; if (G.armsT <= 0){ G.armsUp = !G.armsUp; G.armsT = G.armsUp ? 0.6 + rnd()*0.6 : 0.4 + rnd()*1.0; } }
     return; }
@@ -1648,14 +1649,15 @@ function tdCelebration(dt){
    and the crowd flips: a 4 s boo instead of the cheer, or a 4 s cheer instead of the boos. Then all his teammates go after the
    man who knocked him down and dive on him; once one gets him, he and everyone in the pile stay down for the rest of the
    celebration (user, v1.14). He can get up and run first. */
+const FLOP_UP = 0.3;
 function tdLive(dt){
-  const S = G.tdBy, T = S.team, me = G.tdCtl, spiking = G.t >= 5;
+  const S = G.tdBy, T = S.team, me = G.tdCtl, spiking = G.t >= TD_CELEB;
   /* (user, v1.11) the computer goes after your scorer 65% of the time, with one dive only */
   if (G.tdChaser === null && isHuman(T)){ G.tdChaser = false;
     if (rnd() < 0.65){ let best = null, bd = 1e9; for (const o of G.all){ if (o.team === T || isHuman(o.team)) continue; const k = dist(o,S); if (k < bd){ bd = k; best = o; } } G.tdChaser = best || false; } }
   if (me && me.team !== T && input.btnEdge){ if (G.tdKnocked) sayHaha(); else tryDive(me); }   // once you've knocked the scorer down, the button taunts instead of diving (user, v1.18)
   for (const p of G.all){
-    if (p.dive || p.downT > 0 || p.fallT > 0) continue;
+    if (p.dive || p.downT > 0 || p.fallT > 0 || p.flopper) continue;
     if (p === me){ if (!(p === S && spiking)) humanMove(p, roleSpd(p), dt); else p.vx = p.vy = 0; }
     else if (p === G.tdChaser){
       if (S.fallT > 0 || S.downT > 0){ p.vx = p.vy = 0; }
@@ -1684,8 +1686,13 @@ function tdLive(dt){
      diver; a diver who misses gets up and goes after him again. */
   const K = G.tdPile;
   if (K) for (const p of G.all){ if (p.team === T && p.dive && p.pileDive && !(K.dive) && dist(p, K) < TACKLE){ p.pileHit = true; if (!K.piled){ K.piled = true; if (!(K.downT > 0)){ K.fallT = 0.4; K.vx = K.vy = 0; } sfx('tackle'); } } }   // on his feet: he goes down (0.4 s fall)
+  /* (user, v1.19) everyone whose dive got him keeps belly flopping onto him: 0.3 s getting up (0.1 s flat, then rising), then a
+     0.3 s flop straight down onto him, over and over until the celebration ends */
   for (const p of G.all){
-    if (p.pileDive && !p.dive){ if (p.pileHit) p.piled = true; p.pileDive = false; }
+    if (p.pileDive && !p.dive){ if (p.pileHit){ p.flopper = true; p.downT = p.downMax = FLOP_UP; p.proneUp = false; } p.pileDive = false; }
+    if (p.flopper && !p.dive){
+      if (p.downT > FLOP_UP + 0.01){ p.downT = p.downMax = FLOP_UP; p.proneUp = false; }   // just landed a flop: the short get-up, not a dive's 0.7 s
+      else if (!(p.downT > 0) && K){ const vx = (K.x - p.x)/0.3, vy = (K.y - p.y)/0.3; p.proneUp = false; p.dive = {t:0, vx, vy}; if (Math.abs(vx) > 0.01) p.facing = Math.sign(vx); } }
     if (p.piled && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = false; p.vx = p.vy = 0; } }
 }
 function hornAllowed(){ return G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team); }
