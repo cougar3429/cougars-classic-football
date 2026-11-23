@@ -23,7 +23,8 @@ body { margin: 0; background: #12301d; color: var(--cream); font-family: var(--f
 #cv { position: absolute; left: 0; top: 0; width: 844px; height: 390px; display: block; }
 
 /* formation picker */
-#forms { position: absolute; left: 50%; top: 80px; transform: translateX(-50%); display: flex; gap: 8px; z-index: 3; }
+#forms { position: absolute; left: 0; top: 0; width: 844px; height: 390px; z-index: 3; pointer-events: none; }   /* buttons placed by placeForms() (user, v1.03) */
+#forms .fbtn { position: absolute; pointer-events: auto; }
 #forms[hidden] { display: none; }
 .fbtn { font: 400 13px var(--font-display); color: var(--ink); background: var(--cream); border: 2px solid var(--ink); border-radius: 10px;
   padding: 8px 10px; min-height: 40px; white-space: nowrap; box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
@@ -130,7 +131,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.02</small>
+    <small id="ver">Version 1.03</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -318,6 +319,19 @@ addEventListener('keyup', e => {
   const d = KEYDIR[e.code]; if (d){ input.key[d] = 0; showPad(); }
   else if (e.code==='Space'||e.code==='Enter'||e.code==='KeyJ') btnUp();
 });
+/* formation buttons (user, v1.03): the two with more receivers on the offense's left go along the offense's left
+   sideline, the two right-heavy ones along its right sideline (the top of the screen is the offense's left when it
+   drives right, the bottom when it drives left), on the offense's side of the screen */
+function placeForms(){
+  const d = G.d, bs = [...document.querySelectorAll('.fbtn')], gap = 8, edge = 165;
+  const leftTop = d > 0, rows = [[bs[0], bs[1]], [bs[2], bs[3]]];   // [left-heavy, right-heavy]
+  rows.forEach((row, r) => {
+    const top = (r === 0) === leftTop ? 56 : 272;
+    let x = edge;
+    if (d > 0) row.forEach(b => { b.style.top = top+'px'; b.style.right = ''; b.style.left = x+'px'; x += b.offsetWidth + gap; });
+    else [...row].reverse().forEach(b => { b.style.top = top+'px'; b.style.left = ''; b.style.right = x+'px'; x += b.offsetWidth + gap; });
+  });
+}
 document.querySelectorAll('.fbtn').forEach(b => b.addEventListener('click', () => { input.formKey = +b.dataset.f; }));
 
 // ---------- moving the controls (same as baseball): drag the D pad and the button anywhere; saved on this phone ----------
@@ -435,10 +449,11 @@ function crowdCheer(big){   // crowd roar; a touchdown gets the long one with a 
   try { if (!AC || !CROWD || VOL.crowd <= 0) return;
     const t = AC.currentTime;
     const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.7;
-    const n = AC.createBufferSource(); n.buffer = noiseBuf(big ? 2.6 : 1.7); const g = AC.createGain();
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t+0.5); g.gain.setValueAtTime(0.4, t+(big?1.6:0.9)); g.gain.exponentialRampToValueAtTime(0.0001, t+(big?2.5:1.6));
-    n.connect(bp); bp.connect(g); g.connect(CROWD); n.start(t); n.stop(t+(big?2.6:1.7));
-    for (let k=0;k<(big?7:4);k++){ const st = t + 0.2 + Math.random()*(big?1.4:0.8), o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
+    /* a touchdown's roar lasts 5 s (user, v1.03; was 2.5 s) */
+    const n = AC.createBufferSource(); n.buffer = noiseBuf(big ? 5.1 : 1.7); const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t+0.5); g.gain.setValueAtTime(0.4, t+(big?4.1:0.9)); g.gain.exponentialRampToValueAtTime(0.0001, t+(big?5.0:1.6));
+    n.connect(bp); bp.connect(g); g.connect(CROWD); n.start(t); n.stop(t+(big?5.1:1.7));
+    for (let k=0;k<(big?14:4);k++){ const st = t + 0.2 + Math.random()*(big?4.0:0.8), o = AC.createOscillator(), og = AC.createGain();   // scattered "whoo"s
       o.type = 'triangle'; o.frequency.setValueAtTime(500+Math.random()*300, st); o.frequency.exponentialRampToValueAtTime(900+Math.random()*400, st+0.35);
       env(og, st, 0.05, 0.05, 0.35); o.connect(og); og.connect(CROWD); o.start(st); o.stop(st+0.5); }
     if (big) [0, 0.32].forEach((dt2, k) => { const st = t + 0.15 + dt2; [233, 294, 349].forEach(f => { const o = AC.createOscillator(), og = AC.createGain();
@@ -447,7 +462,7 @@ function crowdCheer(big){   // crowd roar; a touchdown gets the long one with a 
   } catch (e) {}
 }
 function crowdBoo(big){   // crowd booing: lots of low "boooo" voices swelling and fading
-  try { if (!AC || !CROWD || VOL.crowd <= 0) return; const t = AC.currentTime, len = big ? 2.8 : 1.8;
+  try { if (!AC || !CROWD || VOL.crowd <= 0) return; const t = AC.currentTime, len = big ? 5 : 1.8;   // a touchdown's boos last 5 s (user, v1.03; was 2.8 s)
     const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t+0.35); g.gain.setValueAtTime(0.5, t+len-0.6); g.gain.exponentialRampToValueAtTime(0.0001, t+len);
     const f1 = AC.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 330; f1.Q.value = 2.5;
     const f2 = AC.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 800; f2.Q.value = 4; const f2g = AC.createGain(); f2g.gain.value = 0.35;
@@ -891,13 +906,14 @@ function onlyChance(me, c, hit, spd){
   }
   return false;
 }
+const DIVE_UP = 0.7;   // time on the ground after a dive: 0.1 s flat, then the get-up (user, v1.03)
 function stepDives(dt){
   for (const p of G.all){
     if (p.dive && !p.grappled){ const m = p.boost || 1;   // catch-up boost applies to the dive too (user, v0.33)
       p.x += p.dive.vx*m*dt; p.y += p.dive.vy*m*dt; p.vx = p.dive.vx*m; p.vy = p.dive.vy*m; p.dive.t += dt;
       p.y = clamp(p.y, 0.9, FW-0.25); p.x = clamp(p.x, 0.2, FL-0.2);
-      if (p.dive.t >= 0.3){ p.dive = null; p.downT = 0.5; p.vx = p.vy = 0; sfx('slide'); } }   // 0.5 s to get up (user, v0.48)
-    else if (p.fallT > 0){ p.fallT -= dt; p.vx = p.vy = 0; if (p.fallT <= 0){ p.fallT = 0; p.downT = 0.5; p.proneUp = true; } }   // fumbler: 0.4 s fall, then the 0.5 s get-up
+      if (p.dive.t >= 0.3){ p.dive = null; p.downT = p.downMax = DIVE_UP; p.vx = p.vy = 0; sfx('slide'); } }   // 0.7 s to get up after a dive (user, v1.03; was 0.5)
+    else if (p.fallT > 0){ p.fallT -= dt; p.vx = p.vy = 0; if (p.fallT <= 0){ p.fallT = 0; p.downT = p.downMax = 0.5; p.proneUp = true; } }   // fumbler: 0.4 s fall, then the 0.5 s get-up
     else if (p.downT > 0){ p.downT -= dt; p.vx = p.vy = 0; }
   }
 }
@@ -1548,7 +1564,7 @@ function update(dt){
   else if (G.phase === 'formation' || G.phase === 'hwalk' || G.phase === 'routes' || G.phase === 'guess') fx = G.los;
   G.camX += (fx - G.camX) * Math.min(1, dt*4);
   input.btnEdge = false; input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null;
-  const fh = !(G.phase==='formation' && isHuman(G.off)); if ($('forms').hidden !== fh) $('forms').hidden = fh;
+  const fh = !(G.phase==='formation' && isHuman(G.off)); if ($('forms').hidden !== fh){ $('forms').hidden = fh; if (!fh) placeForms(); }
   const lbl = btnLabel(); if (btnEl.textContent !== lbl) btnEl.textContent = lbl;
 }
 
@@ -1624,7 +1640,10 @@ const FONT = {'0':['111','101','101','101','111'], '1':['010','110','010','010',
   '9':['111','101','111','001','111'], ':':['0','1','0','1','0'], 'D':['110','101','101','101','110'],
   'Q':['111','101','101','111','001'], '&':['010','101','010','101','011'], 'G':['111','100','101','101','111'],
   'T':['111','010','010','010','010'], 'O':['111','101','101','101','111'],
-  '-':['000','000','111','000','000'], ' ':['00','00','00','00','00']};
+  '-':['000','000','111','000','000'],
+  /* letters for HOME / VISITORS on the scoreboard (user, v1.03) */
+  'H':['101','101','111','101','101'], 'M':['10001','11011','10101','10001','10001'], 'E':['111','100','111','100','111'],
+  'V':['101','101','101','101','010'], 'I':['111','010','010','010','111'], 'S':['111','100','111','001','111'], 'R':['110','101','110','101','101'], ' ':['00','00','00','00','00']};
 function blockWidth(str, px){ let w = 0; for (const ch of str){ const g = FONT[ch] || FONT[' ']; w += (g[0].length + 1)*px; } return w - px; }
 function blockText(str, x, y, px, color, align){
   let cx = align === 'center' ? x - blockWidth(str,px)/2 : align === 'right' ? x - blockWidth(str,px) : x;
@@ -1724,8 +1743,8 @@ function poseFor(p, moving, spd){
   if (p.fallT > 0){ const f = 1 - p.fallT/0.4;   // fumbler going down: the 0.4 s fall, face first
     return tackleFall(f); }
   if (p.pickT > 0 && G.phase === 'live') return {lean:1.0, hip:0.4, legs:[{t:0.55,k:1.3},{t:-0.25,k:0.7}], arms:[{u:0.9,e:0.15},{u:0.75,e:0.2}]};   // bending down to scoop up the fumble
-  if (p.downT > 0){   // after a dive: 0.1 s flat on the ground, then a 0.4 s get-up (user, v0.52)
-    const el = 0.5 - p.downT, g = Math.max(0, Math.min(1, (el - 0.1)/0.4));
+  if (p.downT > 0){   // after a dive: 0.1 s flat on the ground, then the get-up for the rest (0.6 s after a dive, user v1.03; 0.4 s for a fumbler)
+    const T = p.downMax || 0.5, el = T - p.downT, g = Math.max(0, Math.min(1, (el - 0.1)/(T - 0.1)));
     if (p.proneUp) return tackleFall(1 - g);   // a tackled fumbler gets up the way he went down: knees, then feet
     if (g <= 0) return {...POSES.lying(), lying:true, dove:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]};
     const kneel = Math.sin(Math.PI*g);   // knees come up under him halfway through, then straighten
@@ -2034,6 +2053,12 @@ function drawHUD(){
   ctx.beginPath(); if (G.poss===0){ ctx.moveTo(ax-6, ay-6); ctx.lineTo(ax+4, ay); ctx.lineTo(ax-6, ay+6); } else { ctx.moveTo(ax+6, ay-6); ctx.lineTo(ax-4, ay); ctx.lineTo(ax+6, ay+6); } ctx.fill();
   const c = Math.ceil(G.clock), clk = String(Math.floor(c/60)).padStart(2,'0') + ':' + String(c%60).padStart(2,'0');
   blockText(clk, W/2, 5, 6, C.clock, 'center');
+  /* HOME / VISITORS between each score and the clock (user, v1.03) */
+  if (G.home != null){
+    const sw = blockWidth(sc(0), 6), cw = blockWidth(clk, 6), inL = 150 + sw/2, inR = W/2 - cw/2;
+    const lab = t => t === G.home ? 'HOME' : 'VISITORS';
+    blockText(lab(0), (inL + inR)/2, 13, 3, C.white, 'center'); blockText(lab(1), W - (inL + inR)/2, 13, 3, C.white, 'center');
+  }
 }
 function drawDownBox(){   // "D1  Q1  &10" in yellow near the bottom of the field, like the cartridge's "D1  Q1"
   const goal = Math.abs(G.toGo - (goalX(G.poss)-G.los)*dirOf(G.poss)) < 0.01;
