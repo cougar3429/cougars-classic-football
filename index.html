@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.25</small>
+    <small id="ver">Version 1.26</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1448,6 +1448,7 @@ function doBlocks(){
 }
 function sim(dt){
   G.liveT += dt; G.clock = Math.max(0, G.clock - dt*CLOCK_SCALE);
+  if (twoMinDue() && G.clock <= 120) G.twoMinPending = true;   // it hit 2:00 during the play: the warning comes when the play ends (user, v1.26)
   if (input.btnUpEdge || !input.btn) G.aimArmed = true;   // the hike press has been let go: the button now throws
   { const h = held();   // first input after the change, a direction pressed or already held, or the button: you take over (v0.67/v0.68)
     if (G.ctl && G.ctl.pending && (input.dirEdge || input.btnEdge || h.up || h.down || h.left || h.right)) G.ctl.pending = false; }
@@ -1487,7 +1488,7 @@ function sim(dt){
     const o = c.touchedInAir ? null : G.all.find(o => o.team !== T && !(o.blockedT > 0) && dist(o,c) < TACKLE);
     if (c.touchedInAir || o){
       sfx('tackle');
-      if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.12) return fumble(c);   // first contact was a dive: 12% fumble (user, v1.05; was 15%)
+      if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.12) return fumble(c, [o]);   // first contact was a dive: 12% fumble (user, v1.05; was 15%)
       G.downEarly = true;
       const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
       if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack:false});
@@ -1507,7 +1508,7 @@ function sim(dt){
     sfx('tackle');
     /* a dive that's the first contact on the runner this play (alone or at the same moment as others) forces a fumble 15% of the time (user, v0.92; was 20%) */
     /* first contact this play: a dive knocks it loose 12% of the time, a regular tackle 6% (user, v1.05), sacks included */
-    if (!c.hitBefore && rnd() < (hitters.some(h => h.dive) ? 0.12 : 0.06)) return fumble(c);
+    if (!c.hitBefore && rnd() < (hitters.some(h => h.dive) ? 0.12 : 0.06)) return fumble(c, hitters);
     // a diver doesn't grapple: he's at the runner's feet and trips him, so the runner slows and falls by himself (user, v0.40)
     const holders = hitters.filter(h => !h.dive);
     if (!holders.length){   // tripped by a dive: he goes down right there, straight into the 0.4 s fall (user, v0.41)
@@ -1540,13 +1541,14 @@ function grappleStep(dt){
    recovers it and runs at half speed for 0.3 s while he picks it up. If a player from the other team is within 1 yard
    of the ball right then, he's tackled on the spot. Out of bounds: dead, and the team that fumbled keeps it there
    (out the back of the end zone it's attacking: touchback for the other team). */
-const BOUNCE_LEN = 1.5, BOUNCE_T = 0.4, BOUNCE_H = 0.5;
-function fumble(c){
+const BOUNCE_LEN = 1.5, BOUNCE_T = 0.4, BOUNCE_H = 0.5, NO_PICK_T = 0.8;
+function fumble(c, tacklers){
   G.stats.fum = (G.stats.fum||0) + 1;
   sfx('fumble');   // (user, v1.16)
   c.backFall = false;
   if (!(c.downT > 0)) c.fallT = 0.4; c.vx = c.vy = 0;   // the runner falls (0.4 s), then the 0.5 s get-up (already down after his own dive: just the get-up)
-  G.ball = {state:'loose', x:c.x, y:c.y, left: rnd() < 0.5 ? 2 : 3, t:0, h:0};
+  /* the man who fumbled and whoever knocked it loose can't pick it up for the first 0.8 s (user, v1.26) */
+  G.ball = {state:'loose', x:c.x, y:c.y, left: rnd() < 0.5 ? 2 : 3, t:0, h:0, age:0, noPick: new Set([c, ...(tacklers || [])])};
   nextBounce(G.ball); G.mode = 'loose'; G.fumBy = G.ballTeam;
   /* you take your player nearest the ball (he keeps going for it until you press a direction), unless you're already steering one */
   const hum = isHuman(G.off) ? G.off : isHuman(G.def) ? G.def : null;
@@ -1557,7 +1559,7 @@ function fumble(c){
 }
 function nextBounce(b){
   const a = rnd()*Math.PI*2;
-  b.sx = b.x; b.sy = b.y; b.tx = b.x + Math.cos(a)*BOUNCE_LEN; b.ty = b.y + Math.sin(a)*BOUNCE_LEN; b.t = 0; b.left--;
+  b.sx = b.x; b.sy = b.y; b.tx = b.x + Math.cos(a)*BOUNCE_LEN; b.ty = b.y + Math.sin(a)*BOUNCE_LEN; b.t = 0; b.T = BOUNCE_T; b.left--;
 }
 function ballDeadFor(T, x){   // team T's runner is down (or its ball is dead) at x
   const inOwnEZ = (x-goalX(1-T))*dirOf(T) <= 0;
@@ -1565,11 +1567,12 @@ function ballDeadFor(T, x){   // team T's runner is down (or its ball is dead) a
   return endPlay('INTDOWN', {x: inOwnEZ ? null : x});
 }
 function looseStep(dt){
-  const b = G.ball;
-  if (b.left >= 0 && b.t < BOUNCE_T){   // bouncing
-    b.t = Math.min(BOUNCE_T, b.t + dt); const f = b.t/BOUNCE_T;
+  const b = G.ball; b.age = (b.age || 0) + dt;
+  const BT = b.T || BOUNCE_T;
+  if (b.left >= 0 && b.t < BT){   // bouncing
+    b.t = Math.min(BT, b.t + dt); const f = b.t/BT;
     b.x = b.sx + (b.tx-b.sx)*f; b.y = b.sy + (b.ty-b.sy)*f; b.h = BOUNCE_H*4*f*(1-f);
-    if (b.t >= BOUNCE_T){ b.bounced = true; if (b.left > 0) nextBounce(b); else { b.left = -1; b.h = 0; } }
+    if (b.t >= BT){ b.bounced = true; if (b.left > 0) nextBounce(b); else { b.left = -1; b.h = 0; } }
   }
   if (b.y < 0 || b.y > FW || b.x < 0 || b.x > FL){ G.oob = true;   // out of bounds: dead, the team that fumbled keeps it (real rule)
     const T = G.fumBy, x = clamp(b.x, 0, FL);
@@ -1580,7 +1583,7 @@ function looseStep(dt){
   if (!b.bounced) return;   // nobody can pick it up until it has hit the ground once (user, v0.64)
   const grab = {x:b.x, y:clamp(b.y, 0.9, FW-0.25)};
   let first = null, fd = REACH;
-  for (const p of G.all){ if (p.fallT > 0 || p.downT > 0) continue; const k = dist(p, grab); if (k < fd){ fd = k; first = p; } }
+  for (const p of G.all){ if (p.fallT > 0 || p.downT > 0 || (b.noPick && b.noPick.has(p) && b.age < NO_PICK_T)) continue; const k = dist(p, grab); if (k < fd){ fd = k; first = p; } }
   if (!first) return;
   const R = first.team;
   if (R === G.def && G.fumBy === G.off) G.fumText = true;
@@ -1595,7 +1598,7 @@ function looseStep(dt){
    receives). The receiving team starts at its own 35. Both teams get a possession, even if the first scores a TD;
    a defensive score on the first possession wins it; after both have had the ball, the next score wins. */
 function startOT(){
-  G.quarter = 5; G.clock = quarterSec(); G.flip = !G.flip;   // switch ends for overtime too (v1.21)
+  G.quarter = 5; G.clock = quarterSec(); G.twoMinDone = false; G.twoMinPending = false; G.twoMinShow = false; G.flip = !G.flip;   // switch ends for overtime too (v1.21)
   const humanTeam = isHuman(0) ? 0 : isHuman(1) ? 1 : null, winner = rnd() < 0.5 ? 0 : 1;
   if (humanTeam != null && winner === humanTeam){ G.phase = 'toss'; G.paused = true; showToss(); return; }
   beginOT(winner);   // the computer won the toss: it receives
@@ -1659,7 +1662,8 @@ function endPlay(type, info){
      (interception, fumble lost, turnover on downs, touchback) or a ball out of bounds */
   const clockStops = scored || type === 'INC' || G.poss !== possBefore || G.oob;
   G.oob = false;
-  G.clockRun = !clockStops;   // (user, v1.21) if it doesn't stop, the clock runs while the teams get ready for the next snap
+  G.clockRun = !clockStops;
+  if (G.twoMinPending){ G.twoMinPending = false; G.twoMinDone = true; G.clockRun = false; G.twoMinShow = true; }   // two-minute warning: the clock stops   // (user, v1.21) if it doesn't stop, the clock runs while the teams get ready for the next snap
   /* overtime (NFL playoff rules, user v0.91): a defensive score on the first possession wins it; otherwise the game
      ends as soon as the second team's possession is over and someone is ahead (sudden death after that) */
   if (G.ot && !G.otOver){
@@ -1671,12 +1675,17 @@ function endPlay(type, info){
   }
   banner(text, sub, 1.7);
 }
+/* the two-minute warning (user, v1.26), NFL style: in the 2nd and 4th quarters, and in the 2nd, 4th, ... overtime periods. The
+   clock stops at the first dead ball at or under 2:00, and starts again at the snap. */
+function twoMinDue(){ return G.quarter % 2 === 0 && !G.twoMinDone && G.clock > 0; }
+function twoMinWarn(){ G.twoMinShow = false; banner('TWO MINUTE WARNING', '', 2.2); sfx('whistle'); }
 function nextPlay(){
+  if (G.twoMinShow && G.clock > 0) twoMinWarn();
   if (G.otOver){ G.phase = 'gameover'; G.banner = null; showFinal(); return; }
   if (G.clock <= 0){
     if (G.quarter === 4 && G.score[0] !== G.score[1]){ G.phase = 'gameover'; G.banner = null; showFinal(); return; }
     if (G.quarter === 4) return startOT();                      // tied after four quarters: overtime (user, v0.91)
-    G.quarter++; G.clock = quarterSec(); G.clockRun = false;   // overtime periods use the quarter length too (user, v1.21)
+    G.quarter++; G.clock = quarterSec(); G.clockRun = false; G.twoMinDone = false; G.twoMinPending = false; G.twoMinShow = false;   // overtime periods use the quarter length too (user, v1.21)
     G.flip = !G.flip; G.los = FL - G.los;   // the teams switch ends every quarter; the ball moves to the same yard line at the other end (user, v1.21)
     if (G.quarter > 5){ startHuddle(); banner('OVERTIME '+(G.quarter-4), TEAM[G.poss].name+' BALL'); return; }   // another 15-minute period; the team with the ball keeps it
     if (G.quarter === 3){ changePoss(1-G.firstPoss, own35(1-G.firstPoss)); startHuddle(); banner('HALFTIME', TEAM[G.poss].name+' BALL'); return; }
@@ -1825,8 +1834,9 @@ function update(dt){
     murmurLevel(on ? (G.phase === 'live' ? 0.08 : 0.12) : 0);
     /* the clock runs at play speed while the teams get ready, after a play that didn't stop it (user, v1.21) */
     if (G && G.clockRun && !G.paused && ['formation','hwalk','routes','guess','align','presnap'].includes(G.phase)){
-      G.clock = Math.max(0, G.clock - dt*CLOCK_SCALE);
-      if (G.clock <= 0){ G.clockRun = false; nextPlay(); } }   // time ran out before the snap: the quarter (or the game) ends right there (user, v1.25)
+      const due = twoMinDue(); G.clock = Math.max(0, G.clock - dt*CLOCK_SCALE);
+      if (due && G.clock <= 120){ G.clock = 120; G.clockRun = false; G.twoMinDone = true; twoMinWarn(); }   // two-minute warning while they get ready: stops right at 2:00 (user, v1.26)
+      else if (G.clock <= 0){ G.clockRun = false; nextPlay(); } }   // time ran out before the snap: the quarter (or the game) ends right there (user, v1.25)
     chantTick(on && !G.paused && (G.down === 3 || G.down === 4) && G.def === G.home && ['formation','hwalk','routes','guess','align','presnap'].includes(G.phase)); }
   if (!G || G.paused) { input.btnEdge = input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null; return; }
   if (G.banner){ G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
@@ -1949,6 +1959,7 @@ const FONT = {'0':['111','101','101','101','111'], '1':['010','110','010','010',
   '-':['000','000','111','000','000'],
   /* letters for HOME / VISITORS on the scoreboard (user, v1.03) */
   'H':['101','101','111','101','101'], 'M':['10001','11011','10101','10001','10001'], 'E':['111','100','111','100','111'],
+  'A':['010','101','111','101','101'], 'N':['1001','1101','1011','1001','1001'], 'L':['100','100','100','100','111'],
   'V':['101','101','101','101','010'], 'I':['111','010','010','010','111'], 'S':['111','100','111','001','111'], 'R':['110','101','110','101','101'], ' ':['00','00','00','00','00']};
 function blockWidth(str, px){ let w = 0; for (const ch of str){ const g = FONT[ch] || FONT[' ']; w += (g[0].length + 1)*px; } return w - px; }
 function blockText(str, x, y, px, color, align){
@@ -2390,7 +2401,8 @@ function drawHUD(){
   // possession arrow
   ctx.fillStyle = C.white; const ax = G.poss===0 ? 150 - 40 : W - 150 + 40, ay = 20;
   ctx.beginPath(); if (G.poss===0){ ctx.moveTo(ax-6, ay-6); ctx.lineTo(ax+4, ay); ctx.lineTo(ax-6, ay+6); } else { ctx.moveTo(ax+6, ay-6); ctx.lineTo(ax-4, ay); ctx.lineTo(ax+6, ay+6); } ctx.fill();
-  const c = Math.ceil(G.clock), clk = String(Math.floor(c/60)).padStart(2,'0') + ':' + String(c%60).padStart(2,'0');
+  const c = Math.ceil(G.clock), q = G.quarter > 4 ? 'OT' + (G.quarter > 5 ? G.quarter-4 : '') : 'Q' + G.quarter;   // the quarter, before the clock (user, v1.26)
+  const clk = q + ' ' + String(Math.floor(c/60)).padStart(2,'0') + ':' + String(c%60).padStart(2,'0');
   blockText(clk, W/2, 5, 6, C.clock, 'center');
   /* HOME / VISITORS between each score and the clock (user, v1.03) */
   if (G.home != null){
@@ -2399,10 +2411,10 @@ function drawHUD(){
     blockText(lab(0), (inL + inR)/2, 13, 3, C.white, 'center'); blockText(lab(1), W - (inL + inR)/2, 13, 3, C.white, 'center');
   }
 }
-function drawDownBox(){   // "D1  Q1  &10" in yellow near the bottom of the field, like the cartridge's "D1  Q1"
-  const goal = Math.abs(G.toGo - (goalX(G.poss)-G.los)*dirOf(G.poss)) < 0.01;
-  const t = 'D' + Math.min(G.down,4) + '  ' + (G.quarter > 4 ? 'OT' + (G.quarter > 5 ? G.quarter-4 : '') : 'Q' + G.quarter) + '  TO GO ' + (goal ? 'G' : Math.max(1, Math.round(G.toGo)));
-  blockText(t, W/2, FIELD_BOT - 26, 3, C.clock, 'center');
+function drawDownBox(){   // down and distance near the bottom of the field: "1ST AND 10", "3RD AND 17", red on 4th down (user, v1.26)
+  const goal = Math.abs(G.toGo - (goalX(G.poss)-G.los)*dirOf(G.poss)) < 0.01, dn = Math.min(G.down,4);
+  const t = dn + ['ST','ND','RD','TH'][dn-1] + ' AND ' + (goal ? 'GOAL' : Math.max(1, Math.round(G.toGo)));
+  blockText(t, W/2, FIELD_BOT - 26, 3, dn === 4 ? '#e0413b' : C.clock, 'center');
 }
 function draw(){
   const nowT = performance.now(); frameDt = Math.min(0.1, Math.max(0.001, (nowT - lastDrawT)/1000)); lastDrawT = nowT;
