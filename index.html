@@ -67,7 +67,7 @@ body { margin: 0; background: #12301d; color: var(--cream); font-family: var(--f
 .big-btn.alt { background: var(--cream); color: var(--ink); }
 button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .frow { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-.trow { display: flex; gap: 14px; align-items: center; }
+.trow { display: flex; gap: 14px; align-items: flex-end; }   /* buttons line up along their bottoms, under the labels (v1.25) */
 .lback { position: absolute; left: 14px; top: 12px; border: 2px solid var(--ink); border-radius: 8px; background: var(--cream); color: var(--ink); font: 700 13px var(--font-body); padding: 6px 12px; min-height: 34px; cursor: pointer; }
 #ver { position: absolute; right: 14px; bottom: 10px; font: 700 13px var(--font-body); letter-spacing: 0.08em; color: #cfdccf; }
 #how { gap: 8px; }
@@ -169,7 +169,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     <h1>Quit This Game?</h1>
     <p>The score will be lost. The game is paused while you decide.</p>
     <div class="row"><button class="big-btn" id="qyes" type="button">QUIT TO MENU</button><button class="big-btn" id="qno" type="button" style="background:#2f6fe0">KEEP PLAYING</button></div>
-    <div class="row"><button type="button" class="selbtn colbtn" id="colb2" aria-label="Team colors"><span class="swp"><i></i><i></i></span>COLORS</button>
+    <div class="row" style="align-items:flex-end"><button type="button" class="selbtn colbtn" id="colb2" aria-label="Team colors"><span class="swp"><i></i><i></i></span>COLORS</button>
       <div class="opt"><label>Jersey</label><div class="seg" role="group" aria-label="Which of your uniforms you wear"><button type="button" id="jhome" aria-pressed="true">HOME</button><button type="button" id="jaway" aria-pressed="false">AWAY</button></div></div></div>
     <button class="big-btn alt" id="qmove" type="button">MOVE CONTROLS</button>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
