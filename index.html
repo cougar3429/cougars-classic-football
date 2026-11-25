@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.26</small>
+    <small id="ver">Version 1.27</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -2081,8 +2081,8 @@ function poseFor(p, moving, spd){
     if (f < 0.25) return {lean:0.35, hip:0.33, legs:[{t:0.5,k:1.3},{t:0.3,k:1.1}], arms:[{u:-0.6,e:0.3},{u:-0.5,e:0.3}]};
     if (f < 0.55) return {lean:0, hip:0.5, legs:[{t:0.25,k:0.7},{t:-0.1,k:0.5}], arms:[{u:2.9,e:0.1},{u:2.7,e:0.2}]};
     const g = (f - 0.55)/0.45;
-    return p.flop.back ? {...POSES.stand(), lying:true, dove:false, fall:g, arms:[{u:1.5,e:2.3},{u:0.4,e:0.3}]}   // elbow drop: back first, elbow out
-                       : {...POSES.lying(), lying:true, dove:true, fall:g, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]}; }   // belly flop: face first, arms out
+    return p.flop.back ? {...POSES.stand(), lying:true, dove:false, fall:g, hipPivot:true, arms:[{u:1.5,e:2.3},{u:0.4,e:0.3}]}   // elbow drop: back first, elbow out
+                       : {...POSES.lying(), lying:true, dove:true, fall:g, hipPivot:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]}; }   // hipPivot: turns around his middle in the air (user, v1.27)   // belly flop: face first, arms out
   if (p.downT > 0){   // after a dive: 0.1 s flat on the ground, then the get-up for the rest (0.6 s after a dive, user v1.03; 0.4 s for a fumbler)
     const T = p.downMax || 0.5, el = T - p.downT; let g = Math.max(0, Math.min(1, (el - 0.1)/(T - 0.1)));
     if (p.proneUp) return p.backFall ? backFall(1 - g) : tackleFall(1 - g);   // a tackled fumbler gets up the way he went down: knees, then feet
@@ -2186,7 +2186,10 @@ function drawAthlete(p, x, y, dirX, pose, T){
   if (pose.lying){   // going down: a 0.4 s fall from upright to prone (user, v0.38)
     const f = pose.fall == null ? 1 : pose.fall, e = f*f*(3-2*f);
     const fwd = (p === G.downed || pose.dove || (G.downTacklers && G.downTacklers.includes(p))) ? 1 : -1;   // ball carriers (v0.46) and divers land face first, the way they were going
-    ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(fwd*dirX*Math.PI/2*0.96*e); }
+    if (pose.hipPivot){   /* a flop in the air (user, v1.27): he turns around his hips, not his feet, and ends in the same spot as a fall */
+      const h = S*0.5, a = fwd*dirX*Math.PI/2*0.96, hx = (-dirX*S*0.45 + h*Math.sin(a))*e, hy = (-S*0.06 - h*Math.cos(a))*e - h*(1-e);
+      ctx.translate(hx, hy); ctx.rotate(a*e); ctx.translate(0, h); }
+    else { ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(fwd*dirX*Math.PI/2*0.96*e); } }
   /* spin move (user, v0.29; redone v0.81): a real 360° turn over 0.4 s. He turns from his side view to face the camera,
      then shows his other side, then his back (number and the back of the helmet), then comes around to his side again. */
   if (p.spinT > 0){ const f = 1 - p.spinT/0.4;
