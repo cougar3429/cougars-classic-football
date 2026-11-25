@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.30</small>
+    <small id="ver">Version 1.31</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1200,7 +1200,7 @@ function freeRun(w){
     w.free = 1; const k = (w.x - stopX)*d;
     if (k > 0.3){ const t = k / Math.max(0.01, (w.x - q.x)*d); return [{x: stopX, y: w.y + (q.y - w.y)*clamp(t, 0, 1)}]; }
   }
-  /* random running (user, v1.15): a new random direction every 2 s, a 2-second run that stays 1-8 yards past the line and
+  /* random running (user, v1.15; stops added v1.31): a random direction, a 2-second run that stays 1-8 yards past the line and
      inside the sidelines. Each new direction is a turn the defender takes 0.5 s to react to. */
   w.rand = true; w.freeT = FREE_TURN; w.turnId = (w.turnId || 0) + 1;
   const L = SPD.wr*FREE_TURN;
@@ -1208,17 +1208,20 @@ function freeRun(w){
     if (dx >= 1 && dx <= 8 && y >= EDGE_TOP && y <= EDGE_BOT) return [{x, y}]; }
   return [{x: G.los + d*(1 + Math.random()*7), y: EDGE_TOP + Math.random()*(EDGE_BOT - EDGE_TOP)}];   // no 2-second run fits: any spot in the area
 }
-const FREE_TURN = 2, DB_REACT = 0.5;
+const FREE_TURN = 2, DB_REACT = 0.4;   // defenders react to a new direction in 0.4 s (user, v1.31; was 0.5)
 function followRoute(w, dt){
   if (w.stopped && w.restartT != null && w.wp && G.qb && (G.qb.x - G.los)*G.d <= 0 && !(w.x > FL-0.5 || w.x < 0.5)){
     w.restartT -= dt;
     if (w.restartT <= 0){ w.restartT = null; w.wp = freeRun(w); w.wpi = 0; w.stopped = false; }
   }
   if (w.stopped || !w.wp){ w.vx = w.vy = 0; return; }
-  if (w.rand && (G.qb.x - G.los)*G.d <= 0){ w.freeT -= dt; if (w.freeT <= 0){ w.wp = freeRun(w); w.wpi = 0; } }   // every 2 s: a new direction (user, v1.15)
+  /* (user, v1.31) random running: 2 s in the chosen direction, then he stops, faces the QB and waits 0.7 s before the next direction */
+  const freeStop = () => { w.stopped = true; w.vx = w.vy = 0; w.face = Math.atan2(G.qb.y-w.y, G.qb.x-w.x); w.restartT = FREE_WAIT; };
+  if (w.rand && (G.qb.x - G.los)*G.d <= 0){ w.freeT -= dt; if (w.freeT <= 0) return freeStop(); }
   const wp = w.wp[w.wpi];
   if (!wp){
-    if (w.free && (G.qb.x - G.los)*G.d <= 0){ w.wp = freeRun(w); w.wpi = 0; return followRoute(w, dt); }   // already running free: straight on to the next spot
+    if (w.rand && (G.qb.x - G.los)*G.d <= 0) return freeStop();   // the end of a run: stop and wait (v1.31)
+    if (w.free && (G.qb.x - G.los)*G.d <= 0){ w.wp = freeRun(w); w.wpi = 0; return followRoute(w, dt); }   // back near the line: straight on into the first random run
     w.stopped = true; w.vx = w.vy = 0; w.face = Math.atan2(G.qb.y-w.y, G.qb.x-w.x); w.restartT = FREE_WAIT; return; }
   if (moveToward(w, wp, SPD.wr, dt)) w.wpi++;
   if (w.x > FL-0.5 || w.x < 0.5){ w.stopped = true; w.vx = w.vy = 0; }
