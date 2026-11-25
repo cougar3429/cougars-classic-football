@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.29</small>
+    <small id="ver">Version 1.30</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1058,7 +1058,8 @@ function stepDives(dt){
     if (p.dive && !p.grappled){ const m = p.boost || 1;   // catch-up boost applies to the dive too (user, v0.33)
       p.x += p.dive.vx*m*dt; p.y += p.dive.vy*m*dt; p.vx = p.dive.vx*m; p.vy = p.dive.vy*m; p.dive.t += dt;
       p.y = clamp(p.y, 0.9, FW-0.25); p.x = clamp(p.x, 0.2, FL-0.2);
-      if (p.dive.t >= 0.3){ p.dive = null; p.downT = p.downMax = DIVE_UP; p.vx = p.vy = 0; sfx('slide'); } }   // 0.7 s to get up after a dive (user, v1.03; was 0.5)
+      if (p.dive.t >= 0.3){ p.dive = null; p.downT = p.downMax = DIVE_UP; p.vx = p.vy = 0; sfx('slide');
+        if (G.phase === 'live' && G.ball.state === 'held' && G.ball.carrier === p && rnd() < 0.01){ fumble(p, []); return; } } }   /* a ball carrier's dive: 1% fumble when he lands, touched or not (user, v1.30) */   // 0.7 s to get up after a dive (user, v1.03; was 0.5)
     else if (p.fallT > 0){ p.fallT -= dt; p.vx = p.vy = 0; if (p.fallT <= 0){ p.fallT = 0; p.downT = p.downMax = 0.5; p.proneUp = true; } }   // fumbler: 0.4 s fall, then the 0.5 s get-up
     else if (p.downT > 0){ p.downT -= dt; p.vx = p.vy = 0; }
   }
@@ -1488,7 +1489,6 @@ function sim(dt){
     const o = c.touchedInAir ? null : G.all.find(o => o.team !== T && !(o.blockedT > 0) && dist(o,c) < TACKLE);
     if (c.touchedInAir || o){
       sfx('tackle');
-      if (!c.hitBefore && (c.touchedInAir ? c.touchDive : o.dive) && rnd() < 0.12) return fumble(c, [o]);   // first contact was a dive: 12% fumble (user, v1.05; was 15%)
       G.downEarly = true;
       const inOwnEZ = (c.x-goalX(1-T))*dirT <= 0;
       if (T === G.off) return inOwnEZ ? endPlay('SAFETY') : endPlay('DOWN', {x:c.x, sack:false});
@@ -1508,7 +1508,7 @@ function sim(dt){
     sfx('tackle');
     /* a dive that's the first contact on the runner this play (alone or at the same moment as others) forces a fumble 15% of the time (user, v0.92; was 20%) */
     /* first contact this play: a dive knocks it loose 12% of the time, a regular tackle 6% (user, v1.05), sacks included */
-    if (!c.hitBefore && rnd() < (hitters.some(h => h.dive) ? 0.12 : 0.06)) return fumble(c, hitters);
+    if (!c.hitBefore && rnd() < (hitters.some(h => h.dive) ? 0.10 : 0.05)) return fumble(c, hitters);   // 10% and 5% (user, v1.30)
     // a diver doesn't grapple: he's at the runner's feet and trips him, so the runner slows and falls by himself (user, v0.40)
     const holders = hitters.filter(h => !h.dive);
     if (!holders.length){   // tripped by a dive: he goes down right there, straight into the 0.4 s fall (user, v0.41)
@@ -1727,9 +1727,9 @@ function ughMaybe(){ G.ughN = (G.ughN||0) + 1; if (G.ughN % 2 === 1) sayUgh(); }
 /* (user, v1.24) during a touchdown celebration everyone runs at a defensive back's normal speed, no boosts */
 const TD_SPD = () => SPD.dbChase, HAHA_T = 0.9, TD_NEAR = 0.5;
 /* the pile (user, v1.28 redo): everything 25% slower than v1.22. Jump 0.75 s (a 0.19 s crouch, then 0.56 s in the air), lying
-   on the pile 0.5 s, rolling off 0.3 s, getting up 0.44 s. Up to 3 at a time on the pile or in the air; they take turns,
+   on the pile 0.5 s, rolling off 0.3 s, getting up 0.44 s. Up to 3 at a time on the pile or in the air (2 from v1.30); they take turns,
    one takeoff at least 0.35 s after the last; whoever has waited longest goes next. */
-const FLOP_T = 0.75, FLOP_CROUCH = 0.1875, PILE_LIE = 0.5, PILE_ROLL = 0.3, PILE_RISE = 0.4375, PILE_MAX = 3, PILE_GAP = 0.35;
+const FLOP_T = 0.9375, FLOP_CROUCH = 0.234, PILE_LIE = 0.5, PILE_ROLL = 0.3, PILE_RISE = 0.4375, PILE_MAX = 3, PILE_AT_ONCE = 2, PILE_GAP = 0.35;   // v1.30: flops and elbow drops 25% slower again (0.94 s), and 2 at a time (user)
 const PILE_REACH = 1.0, ELBOW_YD = () => 0.31*FIG/SX;   // takes off within 1 yd of where he'll land; the elbow is at the shoulder, 0.31 body-heights from the hips
 function tdLive(dt){
   const S = G.tdBy, T = S.team, me = G.tdCtl, spiking = G.t >= TD_CELEB;
@@ -1816,7 +1816,7 @@ function tdLive(dt){
       if (p.waitSince == null) p.waitSince = G.t;
       const active = G.all.filter(o => o.flopper && (o.flop || (o.fp === 'lie' && o.stackLvl >= 0))).length;
       const first = G.all.filter(o => o.flopper && !o.flop && !o.fp && !o.dive && o.waitSince != null).sort((a,b) => a.waitSince - b.waitSince)[0];
-      if (active < PILE_MAX && G.pileGap <= 0 && first === p){
+      if (active < PILE_AT_ONCE && G.pileGap <= 0 && first === p){
         p.flopN = (p.flopN||0) + 1; G.pileGap = PILE_GAP; p.waitSince = null;
         p.flop = {t:0, T:FLOP_T, back, s, lvl:null, sx:p.x, sy:p.y, tx, ty:K.y}; }
     }
