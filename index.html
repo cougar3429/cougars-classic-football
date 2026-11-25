@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.31</small>
+    <small id="ver">Version 1.32</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -952,7 +952,11 @@ function snap(){
 }
 function humanMove(p, spd, dt){
   if (p.dive || p.downT > 0 || p.fallT > 0 || p.grappled) return;
-  const h = held(); let vx = h.right-h.left, vy = h.down-h.up; const n = Math.hypot(vx,vy);
+  const h = held(); let vx = h.right-h.left, vy = h.down-h.up;
+  /* (user, v1.32) at a sideline, pushing into it does nothing: only the rest of the direction counts, so a diagonal along the
+     sideline runs at full speed instead of 71% */
+  if ((vy < 0 && p.y <= 0.9 + 1e-6) || (vy > 0 && p.y >= FW - 0.25 - 1e-6)) vy = 0;
+  const n = Math.hypot(vx,vy);
   spd *= slowMul(p);
   if (n){ vx/=n; vy/=n; p.x += vx*spd*dt; p.y += vy*spd*dt; p.vx = vx*spd; p.vy = vy*spd; p.face = Math.atan2(vy,vx); }
   else { p.vx = 0; p.vy = 0; }
