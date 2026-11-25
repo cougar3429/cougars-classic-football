@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.27</small>
+    <small id="ver">Version 1.28</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -424,12 +424,12 @@ const SFX = {
     o.connect(ws); o2.connect(ws); ws.connect(g); g.connect(FX); [o,o2,lfo].forEach(x => { x.start(t); x.stop(t+0.8); });
     const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3000; noiseThrough(t, 0.7, hp, 0.08, 0.02);
   },
-  whistle(){   // referee's pea whistle: the runner is down
-    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), trem = AC.createOscillator(), tg = AC.createGain();
+  whistle(k){   // referee's pea whistle: the runner is down. k stretches it: 2 = twice as long, for the two-minute warning (user, v1.28)
+    k = k || 1; const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), trem = AC.createOscillator(), tg = AC.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(1375, t); trem.frequency.value = 28; tg.gain.value = 60; trem.connect(tg); tg.connect(o.frequency);   // one octave lower (user, v0.75; was 2750 Hz). v0.87 fix: the trill was cut off by a comment, which made it a plain beep
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t+0.02); g.gain.setValueAtTime(0.14, t+0.42); g.gain.exponentialRampToValueAtTime(0.0001, t+0.55);   // half as loud (user, v0.61)
-    o.connect(g); g.connect(FX); o.start(t); trem.start(t); o.stop(t+0.6); trem.stop(t+0.6);
-    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 3; noiseThrough(t, 0.5, bp, 0.025, 0.02);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t+0.02); g.gain.setValueAtTime(0.14, t+0.42*k); g.gain.exponentialRampToValueAtTime(0.0001, t+0.55*k);   // half as loud (user, v0.61)
+    o.connect(g); g.connect(FX); o.start(t); trem.start(t); o.stop(t+0.6*k); trem.stop(t+0.6*k);
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 3; noiseThrough(t, 0.5*k, bp, 0.025, 0.02);
   },
   boom(){   // a spike that made it through the whole celebration: a deep, booming hit (user, v1.23)
     const t = AC.currentTime + 0.005, o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(28, t+1.0);
@@ -633,7 +633,7 @@ function musicStop(){ try { if (!MUSICNOW) return; const t = AC.currentTime, b =
 function crowdReact(team, big, fd){   // home team's good play: cheers; visitors' good play: boos (user, v0.61). Returns its bus.
   if (team == null || !G || G.home == null) return null; return team === G.home ? crowdCheer(big, fd) : crowdBoo(big, fd); }
 function crowdCut(bus){ try { if (!bus || !AC) return; const t = AC.currentTime; bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(bus.gain.value, t); bus.gain.linearRampToValueAtTime(0, t+0.3); } catch (e) {} }
-function sfx(name){ try { if (AC && FX && VOL.fx > 0) SFX[name](); } catch (e) {} }
+function sfx(name, ...a){ try { if (AC && FX && VOL.fx > 0) SFX[name](...a); } catch (e) {} }
 function playLock(){ sfx('lock'); }
 /* taunt (user, v1.18): a mocking two-note "HA-ha!" in a low, nasal synthesized voice, one of two versions at random each press. Plays on the Voice slider. */
 function sayHaha(){
@@ -1678,7 +1678,7 @@ function endPlay(type, info){
 /* the two-minute warning (user, v1.26), NFL style: in the 2nd and 4th quarters, and in the 2nd, 4th, ... overtime periods. The
    clock stops at the first dead ball at or under 2:00, and starts again at the snap. */
 function twoMinDue(){ return G.quarter % 2 === 0 && !G.twoMinDone && G.clock > 0; }
-function twoMinWarn(){ G.twoMinShow = false; banner('TWO MINUTE WARNING', '', 2.2); sfx('whistle'); }
+function twoMinWarn(){ G.twoMinShow = false; banner('TWO MINUTE WARNING', '', 2.2); sfx('whistle', 2); }
 function nextPlay(){
   if (G.twoMinShow && G.clock > 0) twoMinWarn();
   if (G.otOver){ G.phase = 'gameover'; G.banner = null; showFinal(); return; }
@@ -1725,7 +1725,11 @@ function tdCelebration(dt){
 function ughMaybe(){ G.ughN = (G.ughN||0) + 1; if (G.ughN % 2 === 1) sayUgh(); }   // a grunt on every other landing (user, v1.22)
 /* (user, v1.24) during a touchdown celebration everyone runs at a defensive back's normal speed, no boosts */
 const TD_SPD = () => SPD.dbChase, HAHA_T = 0.9, TD_NEAR = 0.5;
-const FLOP_T = 0.6, PILE_LIE = 0.5, PILE_ROLL = 0.24, PILE_RISE = 0.35;   // (user, v1.22) twice as slow: 0.6 s to get up (0.1 s flat, then rising), 0.6 s for the jump and landing
+/* the pile (user, v1.28 redo): everything 25% slower than v1.22. Jump 0.75 s (a 0.19 s crouch, then 0.56 s in the air), lying
+   on the pile 0.5 s, rolling off 0.3 s, getting up 0.44 s. Up to 3 at a time on the pile or in the air; they take turns,
+   one takeoff at least 0.35 s after the last; whoever has waited longest goes next. */
+const FLOP_T = 0.75, FLOP_CROUCH = 0.1875, PILE_LIE = 0.5, PILE_ROLL = 0.3, PILE_RISE = 0.4375, PILE_MAX = 3, PILE_GAP = 0.35;
+const PILE_REACH = 1.0, ELBOW_YD = () => 0.31*FIG/SX;   // takes off within 1 yd of where he'll land; the elbow is at the shoulder, 0.31 body-heights from the hips
 function tdLive(dt){
   const S = G.tdBy, T = S.team, me = G.tdCtl, spiking = G.t >= TD_CELEB;
   for (const p of G.all){ if (p.hahaT > 0) p.hahaT -= dt; }
@@ -1763,9 +1767,10 @@ function tdLive(dt){
       const f = Math.exp(-3*dt); p.tdVx = (p.tdVx||0)*f; p.tdVy = (p.tdVy||0)*f; p.x += p.tdVx*dt; p.y += p.tdVy*dt; p.vx = p.tdVx; p.vy = p.tdVy; }
     p.x = clamp(p.x, 0.2, FL-0.2); p.y = clamp(p.y, 0.9, FW-0.25);
   }
-  /* a dive knocks over anyone on the scoring team (the diver's opponents), never his own teammates (user, v1.13) */
+  /* a dive knocks the scorer over; it stops at any of his teammates (user, v1.13; v1.28), and never touches the diver's own teammates */
   for (const d of G.all){ if (!d.dive || d.team === T) continue;
     for (const p of G.all){ if (p.team !== T || p.dive || p.fallT > 0 || p.downT > 0 || dist(p,d) >= TACKLE) continue;
+      if (p !== S){ d.dive = null; d.downT = d.downMax = DIVE_UP; d.vx = d.vy = 0; sfx('slide'); break; }   /* (user, v1.28) the scorer's teammates are a wall: the dive stops at the first one it reaches, and he stays standing */
       p.fallT = 0.4; p.backFall = true; p.vx = p.vy = 0; sfx('tackle');
       if (p === S && !G.tdKnocked){ G.tdKnocked = true; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.home === T ? 1-T : G.home, false, true);
         if (G.ball.state === 'held' && G.ball.carrier === S){ G.ball = {state:'fall', x:S.x, y:S.y, H0:0.9, t0:G.t || 0, dir:S.facing || 1}; G.armsUp = false; G.tdPile = d; } } } }
@@ -1774,40 +1779,56 @@ function tdLive(dt){
      diver; a diver who misses gets up and goes after him again. */
   const K = G.tdPile;
   if (K) for (const p of G.all){ if (p.team === T && p.dive && p.pileDive && !(K.dive) && dist(p, K) < TACKLE){ if (!p.pileHit) ughMaybe(); p.pileHit = true; if (!K.piled){ K.piled = true; if (!(K.downT > 0)){ K.fallT = 0.4; K.vx = K.vy = 0; } sfx('tackle'); } } }   // on his feet: he goes down (0.4 s fall)
-  /* (user, v1.19; v1.22) everyone whose dive got him keeps jumping on him, over and over until the celebration ends. Each cycle:
-     a 0.6 s jump, face first or back first (an elbow drop) in turn, landing on the pile; lying there 0.5 s, or until a 3rd body
-     lands on the stack (then the one who's been there longest rolls off and the others drop down a layer); rolling off sideways to the ground (0.24 s); getting up (0.35 s); then the next jump.
-     The pile stacks up to 3 jumpers high, not counting the man on the bottom: the first lies on the ground over him. */
-  const layer = o => o.fp === 'lie' ? o.stackLvl : (o.flop && o.flop.lvl != null ? o.flop.lvl : -1);
-  const rollOff = p => { p.fp = 'roll'; p.fpT = 0; p.rollFrom = p.stackLvl; p.rollDir = p.y < FW/2 ? 1 : -1;
+  /* (user, v1.19; v1.22; redone v1.28) everyone whose dive got him keeps jumping on him until the celebration ends. A player's
+     position (x, y) is the spot under his hips while he's in the air, on the pile or rolling off. A belly flop lands his middle on
+     the man at the bottom; an elbow drop is done with his back to the pile, landing his shoulder (the elbow) on him. In the air he
+     goes in a straight line from takeoff to landing. Bodies stack straight up, up to 3 on top of the man; when a 3rd lands, the
+     one who's been there longest rolls off and the others drop down a layer. Each one rolls off up or down the field (either
+     way, at random) 0.5 to 0.9 yd, then gets up wherever he ends up, walks back in range if he has to, and waits his turn. */
+  const rollOff = p => { p.fp = 'roll'; p.fpT = 0; p.rollFrom = p.stackLvl; p.rollY0 = p.y;
+    p.rollDir = rnd() < 0.5 ? 1 : -1; p.rollDist = 0.5 + rnd()*0.4;
+    if (p.y + p.rollDir*p.rollDist > FW-0.25 || p.y + p.rollDir*p.rollDist < 0.9) p.rollDir = -p.rollDir;
     if (p.stackLvl >= 0) for (const o of G.all) if (o.fp === 'lie' && o.stackLvl > p.stackLvl) o.stackLvl--; };   // the bodies above him drop down a layer
+  const onStack = () => G.all.filter(o => o.flopper && o.fp === 'lie' && o.stackLvl >= 0).length;
+  G.pileGap = (G.pileGap || 0) - dt;
   for (const p of G.all){
-    if (p.pileDive && !p.dive){ if (p.pileHit){ p.flopper = true; p.fp = 'lie'; p.fpT = 0; p.fpBack = false; p.stackLvl = -1; p.downT = 0; } p.pileDive = false; }   // his first dive: lying on the ground beside him
+    if (p.pileDive && !p.dive){ if (p.pileHit){ p.flopper = true; p.fp = 'lie'; p.fpT = 0; p.fpBack = false; p.lieS = p.facing || 1; p.stackLvl = -1; p.downT = 0; } p.pileDive = false; }   // his first dive: lying on the ground beside him
     if (!p.flopper || p.dive) continue;
-    if (p.flop){   // in the air
-      const F = p.flop; F.t += dt; const f = Math.min(1, F.t/F.T), a = clamp01((f - 0.25)/0.75);
-      F.lvl = Math.min(2, G.all.filter(o => o !== p && o.fp === 'lie' && o.stackLvl >= 0).length);   // aims for the top of the stack as it is right now
-      p.x = F.sx + (F.tx - F.sx)*a; p.y = F.sy + (F.ty - F.sy)*a; p.vx = p.vy = 0;
-      if (f >= 1){ ughMaybe(); p.flop = null; p.fp = 'lie'; p.fpT = 0; p.fpBack = F.back; p.stackLvl = F.lvl; }
+    if (p.flop){   // crouch, then in the air
+      const F = p.flop; F.t += dt; p.vx = p.vy = 0;
+      const a = clamp01((F.t - FLOP_CROUCH)/(F.T - FLOP_CROUCH));
+      F.lvl = Math.min(PILE_MAX-1, onStack());   // aims for the top of the stack as it is right now
+      p.x = F.sx + (F.tx - F.sx)*a; p.y = F.sy + (F.ty - F.sy)*a;
+      if (F.t >= F.T){ ughMaybe(); p.flop = null; p.fp = 'lie'; p.fpT = 0; p.fpBack = F.back; p.lieS = F.s; p.stackLvl = F.lvl; }
       continue; }
     p.fpT = (p.fpT || 0) + dt;
     if (p.fp === 'lie'){ if (p.fpT >= PILE_LIE) rollOff(p); }
-    else if (p.fp === 'roll'){ p.y = clamp(p.y + p.rollDir*(0.6/PILE_ROLL)*dt, 0.9, FW-0.25);
-      if (p.fpT >= PILE_ROLL){ p.fp = 'rise'; p.fpT = 0; p.stackLvl = -1; } }
+    else if (p.fp === 'roll'){ const k = clamp01(p.fpT/PILE_ROLL); p.y = p.rollY0 + p.rollDir*p.rollDist*k;
+      if (p.fpT >= PILE_ROLL){ p.fp = 'rise'; p.fpT = 0; p.stackLvl = -1; p.facing = p.lieS; } }
     else if (p.fp === 'rise'){ p.downMax = PILE_RISE + 0.1; p.downT = Math.max(0.001, PILE_RISE - p.fpT + dt); p.proneUp = false; p.backFall = false;   // drawn with the normal get-up
-      if (p.fpT >= PILE_RISE){ p.fp = null; p.downT = 0; } }
-    else if (K){ const back = (p.flopN||0) % 2 === 1; p.flopN = (p.flopN||0) + 1;   // standing: jump again; every other one is an elbow drop
-      const s = Math.sign(K.x - p.x) || 1; p.flop = {t:0, T:FLOP_T, back, lvl:null, sx:p.x, sy:p.y, tx:K.x + (back ? s : -s)*0.5, ty:K.y};   /* his middle lands over him */
-      p.facing = s; }
+      if (p.fpT >= PILE_RISE){ p.fp = null; p.downT = 0; p.waitSince = G.t; } }
+    else if (K){   // standing: get in range, then wait his turn
+      const s = Math.sign(K.x - p.x) || p.facing || 1, back = (p.flopN||0) % 2 === 1;   // every other jump is an elbow drop
+      const tx = back ? K.x - s*ELBOW_YD() : K.x, d = Math.hypot(tx - p.x, K.y - p.y);
+      if (d > PILE_REACH){ moveToward(p, {x:tx, y:K.y}, TD_SPD()*0.5, dt); p.waitSince = G.t; continue; }   // walks back in range
+      p.vx = p.vy = 0; p.facing = back ? -s : s;
+      if (p.waitSince == null) p.waitSince = G.t;
+      const active = G.all.filter(o => o.flopper && (o.flop || (o.fp === 'lie' && o.stackLvl >= 0))).length;
+      const first = G.all.filter(o => o.flopper && !o.flop && !o.fp && !o.dive && o.waitSince != null).sort((a,b) => a.waitSince - b.waitSince)[0];
+      if (active < PILE_MAX && G.pileGap <= 0 && first === p){
+        p.flopN = (p.flopN||0) + 1; G.pileGap = PILE_GAP; p.waitSince = null;
+        p.flop = {t:0, T:FLOP_T, back, s, lvl:null, sx:p.x, sy:p.y, tx, ty:K.y}; }
+    }
   }
   /* keep the stack tidy: bodies lying on it fill layers 0, 1, 2 from the bottom, in the order they landed */
   { const st = G.all.filter(o => o.flopper && o.fp === 'lie' && o.stackLvl >= 0).sort((a,b) => a.stackLvl - b.stackLvl || b.fpT - a.fpT); st.forEach((o,i) => o.stackLvl = i); }
   /* 3 stacked: first on, first off (user, v1.22) — the one who's been there longest rolls off */
   { const st = G.all.filter(o => o.flopper && o.fp === 'lie' && o.stackLvl >= 0);
-    if (st.length >= 3){ st.sort((a,b) => b.fpT - a.fpT); rollOff(st[0]); } }
+    if (st.length >= PILE_MAX){ st.sort((a,b) => b.fpT - a.fpT); rollOff(st[0]); } }
   for (const p of G.all){
     if (p.spikeDown && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = true; p.backFall = true; p.vx = p.vy = 0; }   // flattened by the spike: flat on his back
-    if (p.piled && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = false; p.vx = p.vy = 0; } }
+    if (p.piled && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = false; p.vx = p.vy = 0; }
+    if (p === S && G.tdKnocked && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = true; p.backFall = true; p.vx = p.vy = 0; } }   // the knocked-down scorer stays down, on his back (user, v1.28)
 }
 function hornAllowed(){ return G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team); }
 function stepPrePlay(dt){
@@ -1833,7 +1854,9 @@ function update(dt){
   { const on = G && !DEMO && G.phase !== 'gameover';   // crowd (user, v0.61): murmur all game, a little quieter while the ball is live
     murmurLevel(on ? (G.phase === 'live' ? 0.08 : 0.12) : 0);
     /* the clock runs at play speed while the teams get ready, after a play that didn't stop it (user, v1.21) */
-    if (G && G.clockRun && !G.paused && ['formation','hwalk','routes','guess','align','presnap'].includes(G.phase)){
+    /* (user, v1.28) the clock stops while the defense picks its route guesses, so the defense can't run the clock out by not
+       choosing; it starts again as soon as the guesses are in */
+    if (G && G.clockRun && !G.paused && ['formation','hwalk','routes','align','presnap'].includes(G.phase)){
       const due = twoMinDue(); G.clock = Math.max(0, G.clock - dt*CLOCK_SCALE);
       if (due && G.clock <= 120){ G.clock = 120; G.clockRun = false; G.twoMinDone = true; twoMinWarn(); }   // two-minute warning while they get ready: stops right at 2:00 (user, v1.26)
       else if (G.clock <= 0){ G.clockRun = false; nextPlay(); } }   // time ran out before the snap: the quarter (or the game) ends right there (user, v1.25)
@@ -1954,7 +1977,7 @@ const FONT = {'0':['111','101','101','101','111'], '1':['010','110','010','010',
   '3':['111','001','111','001','111'], '4':['101','101','111','001','001'], '5':['111','100','111','001','111'],
   '6':['111','100','111','101','111'], '7':['111','001','001','001','001'], '8':['111','101','111','101','111'],
   '9':['111','101','111','001','111'], ':':['0','1','0','1','0'], 'D':['110','101','101','101','110'],
-  'Q':['111','101','101','111','001'], '&':['010','101','010','101','011'], 'G':['111','100','101','101','111'],
+  'Q':['1111','1001','1001','1011','1111'], '&':['010','101','010','101','011'], 'G':['111','100','101','101','111'],
   'T':['111','010','010','010','010'], 'O':['111','101','101','101','111'],
   '-':['000','000','111','000','000'],
   /* letters for HOME / VISITORS on the scoreboard (user, v1.03) */
@@ -2071,18 +2094,7 @@ function poseFor(p, moving, spd){
   if (p.fallT > 0){ const f = 1 - p.fallT/0.4;   // fumbler going down: the 0.4 s fall, face first
     return p.backFall ? backFall(f) : tackleFall(f); }
   if (p.pickT > 0 && G.phase === 'live') return {lean:1.0, hip:0.4, legs:[{t:0.55,k:1.3},{t:-0.25,k:0.7}], arms:[{u:0.9,e:0.15},{u:0.75,e:0.2}]};   // bending down to scoop up the fumble
-  if (p.flopper && (p.fp === 'lie' || p.fp === 'roll')){   // on the pile, then rolling off it (user, v1.22)
-    const BACK = {...POSES.stand(), lying:true, dove:false, fall:1, arms:[{u:1.5,e:2.3},{u:0.4,e:0.3}]}, FRONT = {...POSES.lying(), lying:true, dove:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]};
-    if (p.fp === 'lie') return p.fpBack ? BACK : FRONT;
-    const k = (p.fpT||0)/0.24;   // a roll: front, back, front (from his back: back, front)
-    return p.fpBack ? (k < 0.5 ? BACK : FRONT) : (k < 0.33 || k >= 0.66 ? FRONT : BACK); }
-  if (p.flop){   // jumping on the pile (user, v1.22): crouch, spring up with his arms up, then turn flat in the air and come down
-    const f = Math.min(1, p.flop.t/p.flop.T);
-    if (f < 0.25) return {lean:0.35, hip:0.33, legs:[{t:0.5,k:1.3},{t:0.3,k:1.1}], arms:[{u:-0.6,e:0.3},{u:-0.5,e:0.3}]};
-    if (f < 0.55) return {lean:0, hip:0.5, legs:[{t:0.25,k:0.7},{t:-0.1,k:0.5}], arms:[{u:2.9,e:0.1},{u:2.7,e:0.2}]};
-    const g = (f - 0.55)/0.45;
-    return p.flop.back ? {...POSES.stand(), lying:true, dove:false, fall:g, hipPivot:true, arms:[{u:1.5,e:2.3},{u:0.4,e:0.3}]}   // elbow drop: back first, elbow out
-                       : {...POSES.lying(), lying:true, dove:true, fall:g, hipPivot:true, arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]}; }   // hipPivot: turns around his middle in the air (user, v1.27)   // belly flop: face first, arms out
+  if (p.flop && p.flop.t < FLOP_CROUCH) return {lean:0.35, hip:0.33, legs:[{t:0.5,k:1.3},{t:0.3,k:1.1}], arms:[{u:-0.6,e:0.3},{u:-0.5,e:0.3}]};   // crouching to jump on the pile
   if (p.downT > 0){   // after a dive: 0.1 s flat on the ground, then the get-up for the rest (0.6 s after a dive, user v1.03; 0.4 s for a fumbler)
     const T = p.downMax || 0.5, el = T - p.downT; let g = Math.max(0, Math.min(1, (el - 0.1)/(T - 0.1)));
     if (p.proneUp) return p.backFall ? backFall(1 - g) : tackleFall(1 - g);   // a tackled fumbler gets up the way he went down: knees, then feet
@@ -2183,13 +2195,11 @@ function drawAthlete(p, x, y, dirX, pose, T){
   const S = FIG, skin = SKIN[p.skin||0], shade = c => colMix(c, -0.28);
   const jersey = T.col, pants = T.pants, stripe = T.col, sleeve = T.sec, sock = T.sec, glove = T.sec, beltCol = T.sec, shoe = T.col;   // uniform colors (user, v0.62)
   ctx.save(); ctx.translate(x, y);
-  if (pose.lying){   // going down: a 0.4 s fall from upright to prone (user, v0.38)
+  if (pose.pileRot != null){ ctx.rotate(pose.pileRot); ctx.translate(0, pose.hip*S); }   // the pile: turned around his hips, which are at (x, y) (user, v1.28)
+  else if (pose.lying){   // going down: a 0.4 s fall from upright to prone (user, v0.38)
     const f = pose.fall == null ? 1 : pose.fall, e = f*f*(3-2*f);
     const fwd = (p === G.downed || pose.dove || (G.downTacklers && G.downTacklers.includes(p))) ? 1 : -1;   // ball carriers (v0.46) and divers land face first, the way they were going
-    if (pose.hipPivot){   /* a flop in the air (user, v1.27): he turns around his hips, not his feet, and ends in the same spot as a fall */
-      const h = S*0.5, a = fwd*dirX*Math.PI/2*0.96, hx = (-dirX*S*0.45 + h*Math.sin(a))*e, hy = (-S*0.06 - h*Math.cos(a))*e - h*(1-e);
-      ctx.translate(hx, hy); ctx.rotate(a*e); ctx.translate(0, h); }
-    else { ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(fwd*dirX*Math.PI/2*0.96*e); } }
+    ctx.translate(-dirX*S*0.45*e, -S*0.06*e); ctx.rotate(fwd*dirX*Math.PI/2*0.96*e); }
   /* spin move (user, v0.29; redone v0.81): a real 360° turn over 0.4 s. He turns from his side view to face the camera,
      then shows his other side, then his back (number and the back of the helmet), then comes around to his side again. */
   if (p.spinT > 0){ const f = 1 - p.spinT/0.4;
@@ -2296,11 +2306,20 @@ function drawPlayer(p, mark){
       ctx.beginPath(); ctx.arc(x + dx*dirX + Math.sin(a*3 + j)*1.5, y + dy - k, r*k, 0, 7); ctx.fill(); });
   }
   let lift = 0;
-  const LVL_H = FIG*0.17;   // one body's thickness on the pile
-  if (p.fp === 'lie' && p.stackLvl > 0) lift = p.stackLvl*LVL_H;   // lying on the pile
-  if (p.fp === 'roll' && p.rollFrom > 0) lift = p.rollFrom*LVL_H*(1 - clamp01((p.fpT||0)/0.24));   // rolling off it down to the ground
-  if (p.flop){ const f = Math.min(1, p.flop.t/p.flop.T), a = clamp01((f - 0.2)/0.8); lift = FIG*0.9*Math.sin(Math.PI*a) + (p.flop.lvl||0)*LVL_H*clamp01((f - 0.4)/0.6);   // up in the air, landing on top of the pile
-    dirX = Math.sign(p.flop.tx - p.flop.sx) || dirX; }   // facing the pile
+  /* the pile (user, v1.28 redo): in the air, lying on it and rolling off, he's drawn around his hips. (x, y) is the spot under
+     his hips; lift is how high his hips are. A body lying flat has its hips 0.09 body-heights up; each body on the stack adds 0.17. */
+  const LVL_H = FIG*0.17, LIE_H = FIG*0.09, flat = 0.96*Math.PI/2;
+  const FRONT = {...POSES.lying(), arms:[{u:2.8,e:0.1},{u:2.6,e:0.1}]}, BACK = {...POSES.stand(), arms:[{u:1.5,e:2.3},{u:0.4,e:0.3}]};   // face down, arms out / on his back, elbow out
+  const layerH = L => LIE_H + (L + 1)*LVL_H;   // hips of a body lying at layer L (layer -1 is the ground)
+  let pile = null;
+  if (p.flop && p.flop.t >= FLOP_CROUCH){ const F = p.flop, a = clamp01((F.t - FLOP_CROUCH)/(F.T - FLOP_CROUCH));
+    const h0 = FIG*0.5, h1 = layerH(F.lvl == null ? 0 : F.lvl), turn = clamp01((a - 0.05)/0.85), e = turn*turn*(3-2*turn);
+    pile = {H: h0 + (h1 - h0)*a + FIG*0.5*4*a*(1-a), rot: F.s*flat*e, dirX: F.back ? -F.s : F.s, pose: F.back ? BACK : FRONT}; }   // up to waist height and down onto the stack
+  else if (p.flopper && p.fp === 'lie') pile = {H: layerH(p.stackLvl), rot: p.lieS*flat, dirX: p.fpBack ? -p.lieS : p.lieS, pose: p.fpBack ? BACK : FRONT};
+  else if (p.flopper && p.fp === 'roll'){ const k = clamp01((p.fpT||0)/PILE_ROLL), bk = p.fpBack ? k < 0.5 : (k >= 0.33 && k < 0.66);   // a roll: front, back, front (from his back: back, front)
+    pile = {H: layerH(-1) + (layerH(p.rollFrom == null ? -1 : p.rollFrom) - layerH(-1))*(1 - k), rot: p.lieS*flat, dirX: bk ? -p.lieS : p.lieS, pose: bk ? BACK : FRONT}; }
+  if (pile){ p.hand = drawAthlete(p, x, y - pile.H, pile.dirX, {...pile.pose, pileRot: pile.rot}, T); return; }
+  if (p.flop) dirX = p.flop.back ? -p.flop.s : p.flop.s;   // crouching: facing the pile, or his back to it for an elbow drop
   if (p.hahaT > 0 && !pose.lying) pose = {...pose, arms:[{u:2.95,e:0.1},{u:2.85,e:0.15}]};   // hands up while he laughs (user, v1.24)
   p.hand = drawAthlete(p, x, y - lift, dirX, pose, T);
 
@@ -2417,7 +2436,7 @@ function drawHUD(){
 function drawDownBox(){   // down and distance near the bottom of the field: "1ST AND 10", "3RD AND 17", red on 4th down (user, v1.26)
   const goal = Math.abs(G.toGo - (goalX(G.poss)-G.los)*dirOf(G.poss)) < 0.01, dn = Math.min(G.down,4);
   const t = dn + ['ST','ND','RD','TH'][dn-1] + ' AND ' + (goal ? 'GOAL' : Math.max(1, Math.round(G.toGo)));
-  blockText(t, W/2, FIELD_BOT - 26, 3, dn === 4 ? '#e0413b' : C.clock, 'center');
+  blockText(t, W/2, FIELD_BOT - 30, 4.5, dn === 4 ? '#e0413b' : C.clock, 'center');
 }
 function draw(){
   const nowT = performance.now(); frameDt = Math.min(0.1, Math.max(0.001, (nowT - lastDrawT)/1000)); lastDrawT = nowT;
@@ -2452,7 +2471,8 @@ function draw(){
     const db = G.dbs.find(b => b.cover === w); if (!db || db.mode !== 'mirror') continue;
     ctx.save(); ctx.strokeStyle = '#e0413b'; ctx.lineWidth = 5;   // solid and thick, nearly a solid ring (user, v1.22; was dashed, 2.5)
     ctx.beginPath(); ctx.ellipse(X(w.x), Y(w.y), FIG*0.34, FIG*0.09, 0, 0, 7); ctx.stroke(); ctx.restore(); }
-  for (const p of [...G.all].sort((a,b)=>a.y-b.y)){
+  const depth = p => (p.flop ? Math.max(p.y, p.flop.ty) + 0.004 : p.y) + (p.fp === 'lie' && p.stackLvl >= 0 ? (p.stackLvl+1)*0.001 : 0);   // the pile draws bottom to top (v1.28)
+  for (const p of [...G.all].sort((a,b)=>depth(a)-depth(b))){
     let mark = null;
     if (p === ctl) mark = {c:'#ffd23f', blink: !!(G.ctl && G.ctl.p===p && G.ctl.pending && p.team === G.off)};
     else if (p === visitTarget) mark = {c:C.white, blink:true};
