@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.38</small>
+    <small id="ver">Version 1.39</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -670,7 +670,7 @@ function sayUgh(){
       const n = AC.createBufferSource(); n.buffer = noiseBuf(dur+0.05); const ng = AC.createGain(); ng.gain.value = breath; n.connect(ng); ins.forEach(x => ng.connect(x)); n.start(t); n.stop(t+dur+0.05); };
     const thud = (t, peak) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(50, t+0.12);
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t+0.005); g.gain.exponentialRampToValueAtTime(0.0001, t+0.15); o.connect(g); g.connect(out); o.start(t); o.stop(t+0.16); };
-    const UH = [[640,1,6],[1190,0.6,8],[2400,0.3,10]], pick = Math.floor(Math.random()*4);
+    const UH = [[640,1,6],[1190,0.6,8],[2400,0.3,10]], r5 = Math.floor(Math.random()*5), pick = r5 === 0 ? 0 : r5 <= 2 ? 1 : r5 - 1;   // long Ugh twice as likely as each of the others: 40% long, 20% short, 20% Oof, 20% Hnngh (user, v1.39)
     if (pick < 2){ const long = pick === 1, dur = long ? 0.45 : 0.25, f = long ? 130 + Math.random()*50 : 150 + Math.random()*60, drop = long ? 0.6 : 0.75, vDur = dur/2;   // "Ugh!"
       grunt(t0, {dur, vDur, f0:f, drop, peak: long ? 0.32 : 0.35, voice:1, breath:0.25, fm:UH});
       grunt(t0, {dur, vDur, f0:f, drop, peak: long ? 0.22 : 0.25, voice:0.22, breath:0.9, fm:UH, q:0.67}); thud(t0, 0.5); }
