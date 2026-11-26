@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.34</small>
+    <small id="ver">Version 1.35</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1836,8 +1836,7 @@ function tdLive(dt){
     if (st.length >= PILE_MAX){ st.sort((a,b) => b.fpT - a.fpT); rollOff(st[0]); } }
   for (const p of G.all){
     if (p.spikeDown && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = true; p.backFall = true; p.vx = p.vy = 0; }   // flattened by the spike: flat on his back
-    if (p.piled && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = false; p.vx = p.vy = 0; }
-    if (p === S && G.tdKnocked && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = true; p.backFall = true; p.vx = p.vy = 0; } }   // the knocked-down scorer stays down, on his back (user, v1.28)
+    if (p.piled && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = false; p.vx = p.vy = 0; } }
 }
 function hornAllowed(){ return G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team); }
 function stepPrePlay(dt){
