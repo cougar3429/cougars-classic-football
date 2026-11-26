@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.36</small>
+    <small id="ver">Version 1.37</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1743,7 +1743,7 @@ function tdLive(dt){
   for (const p of G.all){ if (p.hahaT > 0) p.hahaT -= dt; if (p.bubbleT > 0) p.bubbleT -= dt; }
   /* (user, v1.24) the man who knocked the scorer down and was never caught: when the celebration ends, a big crowd reaction for
      his team (cheers if it's the home team, boos if not) and an automatic "HA-ha!" with his hands up */
-  if (G.tdPile && !G.tdEscaped && G.t >= TD_CELEB && !G.tdPile.piled){ G.tdEscaped = true; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.tdPile.team, true, false); sayHaha(); G.tdPile.hahaT = HAHA_T; G.tdPile.bubbleT = HAHA_T; }   // the escape reward also shows a HA-HA! bubble (user, v1.33)
+  if (G.tdPile && !G.tdEscaped && G.t >= TD_CELEB && !G.tdPile.piled){ G.tdEscaped = true; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.tdPile.team, true, false); sayHaha(); G.tdPile.hahaT = HAHA_T; G.tdPile.bubbleT = Infinity; }   /* (user, v1.37) the bubble stays up for the rest of the celebration */   // the escape reward also shows a HA-HA! bubble (user, v1.33)
   /* (user, v1.21) the computer always goes after your scorer (was 65%): its closest man dives at him once; if he misses, the
      next closest who hasn't tried goes, and so on, until one knocks him down or they've all tried */
   const nextChaser = () => { let best = null, bd = 1e9;
@@ -1787,7 +1787,9 @@ function tdLive(dt){
   /* (user, v1.14) he can get up and run from the pile. A teammate's dive that reaches him puts him down for good, along with that
      diver; a diver who misses gets up and goes after him again. */
   const K = G.tdPile;
-  if (K) for (const p of G.all){ if (p.team === T && p.dive && p.pileDive && !(K.dive) && dist(p, K) < TACKLE){ if (!p.pileHit) ughMaybe(); p.pileHit = true; if (!K.piled){ K.piled = true; if (!(K.downT > 0)){ K.fallT = 0.4; K.vx = K.vy = 0; } sfx('tackle'); } } }   // on his feet: he goes down (0.4 s fall)
+  if (K) for (const p of G.all){ if (p.team === T && p.dive && p.pileDive && !(K.dive) && dist(p, K) < TACKLE){
+    if (G.tdEscaped && !K.piled){ p.dive = null; p.pileDive = false; p.downT = p.downMax = DIVE_UP; p.vx = p.vy = 0; sfx('thud'); continue; }   /* (user, v1.37) he earned the HA-HA! bubble: dives stop at him with a thud for the rest of the celebration */
+    if (!p.pileHit) ughMaybe(); p.pileHit = true; if (!K.piled){ K.piled = true; if (!(K.downT > 0)){ K.fallT = 0.4; K.vx = K.vy = 0; } sfx('tackle'); } } }   // on his feet: he goes down (0.4 s fall)
   /* (user, v1.19; v1.22; redone v1.28) everyone whose dive got him keeps jumping on him until the celebration ends. A player's
      position (x, y) is the spot under his hips while he's in the air, on the pile or rolling off. A belly flop lands his middle on
      the man at the bottom; an elbow drop is done with his back to the pile, landing his shoulder (the elbow) on him. In the air he
@@ -1897,7 +1899,7 @@ function update(dt){
       if (G.tdBy){ tdLive(dt); tdCelebration(dt); } if (G.shakeT > 0) G.shakeT -= dt;
       else if (input.btnEdge){ const dv = diverNow(); if (dv) tryDive(dv); }   // late dives, just for fun: up to 1 s after the whistle (user, v0.47)
       stepDives(dt);
-      if (G.tdBy ? (G.spike && G.t - G.spike.t0 > SPIKE_END) : G.t > (G.brokeAt != null ? 2 : 1.8)){ hornOff(); nextPlay(); }   // touchdown: 5 s celebration, then the spike (user, v0.94)
+      if (G.tdBy ? (G.spike && G.t - G.spike.t0 > SPIKE_END + 1.5) :   /* (user, v1.37) the celebration lasts 1.5 s longer; the spike and the escape stay at 7 s */ G.t > (G.brokeAt != null ? 2 : 1.8)){ hornOff(); nextPlay(); }   // touchdown: 5 s celebration, then the spike (user, v0.94)
       break;
     case 'gameover': break;
   }
