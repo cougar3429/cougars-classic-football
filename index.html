@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.33</small>
+    <small id="ver">Version 1.34</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1781,6 +1781,7 @@ function tdLive(dt){
       if (p !== S){ d.dive = null; d.downT = d.downMax = DIVE_UP; d.vx = d.vy = 0; sfx('slide'); break; }   /* (user, v1.28) the scorer's teammates are a wall: the dive stops at the first one it reaches, and he stays standing */
       p.fallT = 0.4; p.backFall = true; p.vx = p.vy = 0; sfx('tackle');
       if (p === S && !G.tdKnocked){ G.tdKnocked = true; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.home === T ? 1-T : G.home, false, true);
+        sayHaha(); d.hahaT = HAHA_T;   /* (user, v1.34) the first dive that knocks the scorer down gets an automatic HA-ha, whoever made it */
         if (G.ball.state === 'held' && G.ball.carrier === S){ G.ball = {state:'fall', x:S.x, y:S.y, H0:0.9, t0:G.t || 0, dir:S.facing || 1}; G.armsUp = false; G.tdPile = d; } } } }
   /* the man who stopped the spike stays down for the rest of the celebration, and so does everyone who piles on him */
   /* (user, v1.14) he can get up and run from the pile. A teammate's dive that reaches him puts him down for good, along with that
