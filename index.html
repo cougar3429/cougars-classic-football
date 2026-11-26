@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.35</small>
+    <small id="ver">Version 1.36</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1757,7 +1757,7 @@ function tdLive(dt){
   const crowded = p => p.team !== T && G.all.some(m => m.team === T && m !== S && !(m.downT > 0) && !(m.fallT > 0) && !m.dive && !m.flop && dist(m, p) < TD_NEAR);
   for (const p of G.all){
     if (p.dive || p.downT > 0 || p.fallT > 0 || p.flopper || p.flop) continue;
-    const spd = TD_SPD()*(crowded(p) ? 0.75 : 1);
+    const spd = TD_SPD()*(crowded(p) ? 0.9 : 1);   // 10% slower among the scorer's teammates (user, v1.36; was 25%)
     if (p === me){ if (!(p === S && spiking)) humanMove(p, spd, dt); else p.vx = p.vy = 0; }
     else if (p === G.tdChaser){
       if (S.fallT > 0 || S.downT > 0){ p.vx = p.vy = 0; }
