@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.41</small>
+    <small id="ver">Version 1.42</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1769,7 +1769,7 @@ const TD_SPD = () => SPD.dbChase, HAHA_T = 0.9, TD_NEAR = 0.5;
 const FLOP_T = 0.9375, FLOP_CROUCH = 0.234, PILE_LIE = 0.5, PILE_ROLL = 0.3, PILE_RISE = 0.4375, PILE_MAX = 3, PILE_AT_ONCE = 2, PILE_GAP = 0.35;   // v1.30: flops and elbow drops 25% slower again (0.94 s), and 2 at a time (user)
 const PILE_REACH = 1.0, ELBOW_YD = () => 0.31*FIG/SX;   // takes off within 1 yd of where he'll land; the elbow is at the shoulder, 0.31 body-heights from the hips
 function tdLive(dt){
-  const S = G.tdBy, T = S.team, me = G.tdCtl, spiking = G.t >= TD_CELEB;
+  const S = G.tdBy, T = S.team, me = G.tdCtl, spiking = G.t >= TD_CELEB && !G.tdKnocked && !(G.ball && G.ball.thud);   /* (user, v1.42) he stands still only for the spike itself, until the ball hits and the boom; then he can run around again */
   for (const p of G.all){ if (p.hahaT > 0) p.hahaT -= dt; if (p.bubbleT > 0) p.bubbleT -= dt; }
   /* (user, v1.24) the man who knocked the scorer down and was never caught: when the celebration ends, a big crowd reaction for
      his team (cheers if it's the home team, boos if not) and an automatic "HA-ha!" with his hands up */
