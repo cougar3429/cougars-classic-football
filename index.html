@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.37</small>
+    <small id="ver">Version 1.38</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1631,7 +1631,7 @@ function endPlay(type, info){
   G.phase = 'dead'; G.t = 0; G.lastPlay = type;
   const bc = G.ball && G.ball.state === 'held' ? G.ball.carrier : null;
   if (type === 'TD'){ for (const p of G.all){ p.blockedT = 0; p.slowT = 0; p.blockWith = null; }   /* v1.29 fix: a block still running when the touchdown was scored never ran down during the celebration, so that player couldn't dive */
-    G.tdBy = bc; G.tdOff = G.off; G.tdCtl = (G.ctl && G.ctl.p && isHuman(G.ctl.p.team)) ? G.ctl.p : (isHuman(G.def) ? humanDefender() || G.lb : null); /* v1.12 fix: was controlledPlayer(), which gives nobody once the play is dead */ G.tdKnocked = false; G.tdChaser = null; G.tdPile = null; G.tdDiver = null; G.shakeT = 0; for (const p of G.all){ p.tdVx = p.vx || 0; p.tdVy = p.vy || 0; p.tdArrived = false; p.boost = 1; p.slowT = 0; p.hahaT = 0; p.bubbleT = 0; } G.tdEscaped = false; }   /* no leftover catch-up boost or block slowdown (user, v1.24) */ else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
+    G.tdBy = bc; G.tdOff = G.off; G.tdCtl = (G.ctl && G.ctl.p && isHuman(G.ctl.p.team)) ? G.ctl.p : (isHuman(G.def) ? humanDefender() || G.lb : null); /* v1.12 fix: was controlledPlayer(), which gives nobody once the play is dead */ G.tdKnocked = false; G.tdChaser = null; G.tdPile = null; G.tdDiver = null; G.shakeT = 0; for (const p of G.all){ p.tdVx = p.vx || 0; p.tdVy = p.vy || 0; p.tdArrived = false; p.boost = 1; p.slowT = 0; p.hahaT = 0; p.bubbleT = 0; } G.tdEscaped = false; G.celebEnd = null; G.knockT = null; }   /* no leftover catch-up boost or block slowdown (user, v1.24) */ else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
   if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
   /* whose good play was it? (user, v0.61) Offense: touchdown, first down, 5+ yards. Defense: sack, interception, fumble recovered
      from the other team, safety, or holding the gain under 2 yards (not a first down or TD). An incomplete pass counts for nobody. */
@@ -1712,7 +1712,7 @@ function tdCelebration(dt){
     else { G.armsT = (G.armsT || 0) - dt; if (G.armsT <= 0){ G.armsUp = !G.armsUp; G.armsT = G.armsUp ? 0.6 + rnd()*0.6 : 0.4 + rnd()*1.0; } }
     return; }
   G.armsUp = false;
-  if (!G.spike) G.spike = {t0:G.t};
+  if (!G.spike){ G.spike = {t0:G.t}; if (!G.tdKnocked && G.celebEnd == null) G.celebEnd = G.t + 5; }   /* (user, v1.38) the spike is the scorer's reward: the celebration ends 5 s after it */
   const st = G.t - G.spike.t0, S = G.tdBy;
   if (G.ball.state === 'spike' && !G.ball.thud && G.t - G.ball.t0 >= 0.06){ G.ball.thud = true; sfx('thud');   // it hits the turf (user, v0.95)
     /* (user, v1.23) he made it through the whole celebration: the screen shakes, a deep boom, and every opponent is knocked onto
@@ -1743,7 +1743,10 @@ function tdLive(dt){
   for (const p of G.all){ if (p.hahaT > 0) p.hahaT -= dt; if (p.bubbleT > 0) p.bubbleT -= dt; }
   /* (user, v1.24) the man who knocked the scorer down and was never caught: when the celebration ends, a big crowd reaction for
      his team (cheers if it's the home team, boos if not) and an automatic "HA-ha!" with his hands up */
-  if (G.tdPile && !G.tdEscaped && G.t >= TD_CELEB && !G.tdPile.piled){ G.tdEscaped = true; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.tdPile.team, true, false); sayHaha(); G.tdPile.hahaT = HAHA_T; G.tdPile.bubbleT = Infinity; }   /* (user, v1.37) the bubble stays up for the rest of the celebration */   // the escape reward also shows a HA-HA! bubble (user, v1.33)
+  /* (user, v1.38) the knocker's reward: 7 s loose after his knockdown; the celebration ends 5 s after he gets it, or 5 s after the pile catches him */
+  if (G.tdPile && G.tdPile.piled && G.celebEnd == null) G.celebEnd = G.t + 5;
+  if (G.tdKnocked && !G.tdPile && G.celebEnd == null) G.celebEnd = G.t + 5;   // safety: knocked down with no knocker to chase
+  if (G.tdPile && !G.tdEscaped && G.knockT != null && G.t >= G.knockT + TD_CELEB && !G.tdPile.piled){ G.tdEscaped = true; G.celebEnd = G.t + 5; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.tdPile.team, true, false); sayHaha(); G.tdPile.hahaT = HAHA_T; G.tdPile.bubbleT = Infinity; }   /* (user, v1.37) the bubble stays up for the rest of the celebration */   // the escape reward also shows a HA-HA! bubble (user, v1.33)
   /* (user, v1.21) the computer always goes after your scorer (was 65%): its closest man dives at him once; if he misses, the
      next closest who hasn't tried goes, and so on, until one knocks him down or they've all tried */
   const nextChaser = () => { let best = null, bd = 1e9;
@@ -1780,7 +1783,7 @@ function tdLive(dt){
     for (const p of G.all){ if (p.team !== T || p.dive || p.fallT > 0 || p.downT > 0 || dist(p,d) >= TACKLE) continue;
       if (p !== S){ d.dive = null; d.downT = d.downMax = DIVE_UP; d.vx = d.vy = 0; sfx('slide'); break; }   /* (user, v1.28) the scorer's teammates are a wall: the dive stops at the first one it reaches, and he stays standing */
       p.fallT = 0.4; p.backFall = true; p.vx = p.vy = 0; sfx('tackle');
-      if (p === S && !G.tdKnocked){ G.tdKnocked = true; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.home === T ? 1-T : G.home, false, true);
+      if (p === S && !G.tdKnocked && G.t < TD_CELEB){ G.tdKnocked = true; G.knockT = G.t; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.home === T ? 1-T : G.home, false, true);
         sayHaha(); d.hahaT = HAHA_T;   /* (user, v1.34) the first dive that knocks the scorer down gets an automatic HA-ha, whoever made it */
         if (G.ball.state === 'held' && G.ball.carrier === S){ G.ball = {state:'fall', x:S.x, y:S.y, H0:0.9, t0:G.t || 0, dir:S.facing || 1}; G.armsUp = false; G.tdPile = d; } } } }
   /* the man who stopped the spike stays down for the rest of the celebration, and so does everyone who piles on him */
@@ -1899,7 +1902,7 @@ function update(dt){
       if (G.tdBy){ tdLive(dt); tdCelebration(dt); } if (G.shakeT > 0) G.shakeT -= dt;
       else if (input.btnEdge){ const dv = diverNow(); if (dv) tryDive(dv); }   // late dives, just for fun: up to 1 s after the whistle (user, v0.47)
       stepDives(dt);
-      if (G.tdBy ? (G.spike && G.t - G.spike.t0 > SPIKE_END + 1.5) :   /* (user, v1.37) the celebration lasts 1.5 s longer; the spike and the escape stay at 7 s */ G.t > (G.brokeAt != null ? 2 : 1.8)){ hornOff(); nextPlay(); }   // touchdown: 5 s celebration, then the spike (user, v0.94)
+      if (G.tdBy ? (G.celebEnd != null && G.t >= G.celebEnd) :   /* (user, v1.38) the celebration ends 5 s after the reward is won or lost */ G.t > (G.brokeAt != null ? 2 : 1.8)){ hornOff(); nextPlay(); }   // touchdown: 5 s celebration, then the spike (user, v0.94)
       break;
     case 'gameover': break;
   }
