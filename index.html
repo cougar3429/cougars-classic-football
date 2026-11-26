@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.40</small>
+    <small id="ver">Version 1.41</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -652,6 +652,36 @@ function sayHaha(){
       src.start(t); vib.start(t); src.stop(t+dur+0.02); vib.stop(t+dur+0.02); };
     if (Math.random() < 0.5){ ha(t0, [[0, 210], [0.21, 200]], 0.29, 0.55); ha(t0+0.36, [[0, 165], [0.57, 150]], 0.64, 0.5); }   // the slow one, about 1 s
     else { ha(t0, [[0, 230], [0.15, 220]], 0.22, 0.55, true); ha(t0+0.24, [[0, 180], [0.4, 165]], 0.48, 0.5, true); }        // "B": quicker, with a breathy "h", about 0.7 s (user, v1.18)
+  } catch (e) {}
+}
+/* the victory laugh (user's picks, v1.41): for the automatic laugh after evading the pile for 7 s. One of three at random: the
+   villain laugh "Mwa-ha-ha-ha-HA!", the belly laugh (six falling "HA"s) and the schoolyard "NYAH nyah, NYAH nyah nyah!". Voice slider. */
+function sayVictory(){
+  try { if (!AC || VOL.voice <= 0) return; const t0 = AC.currentTime + 0.01, out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
+    const VOW = { a:[[700,1,7],[1150,0.6,9],[2600,0.25,10],[250,0.5,6]], ae:[[680,1,7],[1750,0.7,9],[2500,0.3,10],[250,0.4,6]] };
+    const syl = (t, pts, dur, peak, o) => {
+      o = o || {};
+      if (o.h){ const n = AC.createBufferSource(); n.buffer = noiseBuf(0.1); const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 0.8;
+        const ng = AC.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(peak*0.5, t+0.03); ng.gain.exponentialRampToValueAtTime(0.0001, t+0.09); n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t); }
+      const pre = o.h ? 0.05 : 0, bus = AC.createGain(); bus.connect(out);
+      const src = AC.createOscillator(); src.type = 'sawtooth'; src.frequency.setValueAtTime(pts[0][1], t);
+      for (let i=1;i<pts.length;i++) src.frequency.exponentialRampToValueAtTime(pts[i][1], t+pts[i][0]);
+      const vib = AC.createOscillator(), vg = AC.createGain(); vib.frequency.value = 5.5; vg.gain.value = pts[0][1]*0.015; vib.connect(vg); vg.connect(src.frequency);
+      if (o.nasal){   /* "m" / "ny": a closed, humming start that opens into the vowel */
+        const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400; const ng = AC.createGain();
+        ng.gain.setValueAtTime(peak*1.6, t); ng.gain.setValueAtTime(peak*1.6, t+o.nasal*0.7); ng.gain.exponentialRampToValueAtTime(0.0001, t+o.nasal); src.connect(lp); lp.connect(ng); ng.connect(out);
+        bus.gain.setValueAtTime(0.0001, t); bus.gain.setValueAtTime(0.0001, t+o.nasal*0.6); bus.gain.exponentialRampToValueAtTime(peak, t+o.nasal); }
+      else { bus.gain.setValueAtTime(0.0001, t); bus.gain.setValueAtTime(0.0001, t+pre); bus.gain.exponentialRampToValueAtTime(peak, t+pre+0.03); }
+      bus.gain.setValueAtTime(peak, t+Math.max(pre+0.04, dur-0.07)); bus.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+      VOW[o.v || 'a'].forEach(([f, a, q]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q; const g = AC.createGain(); g.gain.value = a*4; src.connect(bp); bp.connect(g); g.connect(bus); });
+      src.start(t); vib.start(t); src.stop(t+dur+0.02); vib.stop(t+dur+0.02); };
+    const r = Math.floor(Math.random()*3);
+    if (r === 0){ syl(t0, [[0,110],[0.3,120]], 0.34, 0.55, {nasal:0.12});   /* villain */
+      [[0.40,125],[0.62,135],[0.84,145]].forEach(([d,f]) => syl(t0+d, [[0,f],[0.16,f*0.96]], 0.18, 0.5, {h:true}));
+      syl(t0+1.06, [[0,170],[0.15,180],[0.55,130]], 0.58, 0.6, {h:true}); }
+    else if (r === 1){ for (let i=0;i<6;i++){ const f = 200 - i*14; syl(t0 + i*0.2, [[0,f],[0.14,f*0.93]], 0.17 + (i === 5 ? 0.15 : 0), 0.5, {h:true}); } }   /* belly laugh */
+    else { const G = 196, E = 165, A = 220;   /* schoolyard: sol-mi-la-sol-mi */
+      [[0,G,0.28],[0.3,E,0.24],[0.6,A,0.26],[0.9,G,0.24],[1.18,E,0.45]].forEach(([d,f,len]) => syl(t0+d, [[0,f],[len,f*0.98]], len, 0.5, {nasal:0.06, v:'ae'})); }
   } catch (e) {}
 }
 /* pile grunts (user's picks, v1.23): one of four at random each time someone lands on the pile, at a random pitch like a
@@ -1746,7 +1776,7 @@ function tdLive(dt){
   /* (user, v1.38) the knocker's reward: 7 s loose after his knockdown; the celebration ends 5 s after he gets it, or 5 s after the pile catches him */
   if (G.tdPile && G.tdPile.piled && G.celebEnd == null) G.celebEnd = G.t + 5;
   if (G.tdKnocked && !G.tdPile && G.celebEnd == null) G.celebEnd = G.t + 5;   // safety: knocked down with no knocker to chase
-  if (G.tdPile && !G.tdEscaped && G.knockT != null && G.t >= G.knockT + TD_CELEB && !G.tdPile.piled){ G.tdEscaped = true; G.celebEnd = G.t + 5; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.tdPile.team, true, false); sayHaha(); G.tdPile.hahaT = HAHA_T; G.tdPile.bubbleT = Infinity; }   /* (user, v1.37) the bubble stays up for the rest of the celebration */   // the escape reward also shows a HA-HA! bubble (user, v1.33)
+  if (G.tdPile && !G.tdEscaped && G.knockT != null && G.t >= G.knockT + TD_CELEB && !G.tdPile.piled){ G.tdEscaped = true; G.celebEnd = G.t + 5; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.tdPile.team, true, false); sayVictory(); G.tdPile.hahaT = HAHA_T; G.tdPile.bubbleT = Infinity; }   /* (user, v1.37) the bubble stays up for the rest of the celebration */   // the escape reward also shows a HA-HA! bubble (user, v1.33)
   /* (user, v1.21) the computer always goes after your scorer (was 65%): its closest man dives at him once; if he misses, the
      next closest who hasn't tried goes, and so on, until one knocks him down or they've all tried */
   const nextChaser = () => { let best = null, bd = 1e9;
