@@ -132,7 +132,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.39</small>
+    <small id="ver">Version 1.40</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1909,6 +1909,7 @@ function update(dt){
   // camera
   let fx = G.los;
   if (G.phase === 'dead' && G.tdBy) fx = G.tdBy.x;   // camera stays on the touchdown (user, v0.39)
+  if (G.phase === 'dead' && G.tdBy && G.tdKnocked && G.tdPile) fx = G.tdPile.x;   // after the scorer is knocked down, it follows the knocker (user, v1.40)
   if (G.phase === 'dead' && G.brokeAt != null) fx = G.brokeAt;   // a broken-up pass: the camera stays on the ball for 2 s (user, v0.97)
   if (G.phase === 'live'){ const b = G.ball; fx = b.state==='air' ? b.sx+(b.tx-b.sx)*Math.min(1,b.t/b.T) : b.state==='snap' ? G.qb.x + G.d*4 : b.state==='loose' ? b.x : b.carrier.x + (G.mode==='pass' ? G.d*4 : 0); }
   else if (G.phase === 'formation' || G.phase === 'hwalk' || G.phase === 'routes' || G.phase === 'guess') fx = G.los;
