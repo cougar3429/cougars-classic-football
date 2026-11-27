@@ -41,6 +41,7 @@ body { margin: 0; background: #12301d; color: var(--cream); font-family: var(--f
 #dpad .c { position: absolute; left: 45px; top: 45px; width: 46px; height: 46px; background: rgba(251,238,224,0.82); }
 #btn { position: absolute; right: 26px; bottom: 26px; width: 88px; height: 88px; border-radius: 50%; border: 3px solid var(--ink); background: var(--red); box-shadow: inset 0 -6px 0 #a52520, 0 4px 0 var(--ink); touch-action: none; padding: 0;
   color: #fff; font: 400 13px var(--font-display);  opacity: 0.6; /* 40% see-through (user, v1.21) */ }
+#btn.dim { filter: grayscale(1); opacity: 0.35; }
 #btn.on { transform: translateY(3px); box-shadow: inset 0 -3px 0 #a52520, 0 1px 0 var(--ink); }
 /* moving the controls */
 #dpad.ctlmv, #btn.ctlmv { outline: 3px dashed var(--gold); outline-offset: 6px; z-index: 9; cursor: move; }
@@ -132,7 +133,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.44</small>
+    <small id="ver">Version 1.45</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -1791,6 +1792,9 @@ function tdLive(dt){
     if (best) G.tdTried.add(best); return best || false; };
   if (G.tdChaser === null && isHuman(T)){ G.tdTried = new Set(); G.tdChaser = nextChaser(); }
   if (G.tdChaser === false && G.tdDiver && !G.tdDiver.dive){ G.tdDiver = null; if (!G.tdKnocked) G.tdChaser = nextChaser(); }   // he missed: the next man goes
+  if (flopMode() && input.btnEdge){ const f = flopReady();
+    if (f){ me.flopper = true; me.humanFlop = true; me.nextBack = null; me.vx = me.vy = 0; me.facing = f.back ? -f.s : f.s;
+      me.flop = {t:0, T:FLOP_T, back:f.back, s:f.s, lvl:null, sx:me.x, sy:me.y, tx:f.tx, ty:f.ty}; } }
   if (me && me.team !== T && input.btnEdge){ if (G.tdKnocked){ if (!me.piled){ sayHaha(); me.hahaT = HAHA_T; } } else tryDive(me); }   /* no taunting once they've caught you (user, v1.22) */   // once you've knocked the scorer down, the button taunts instead of diving (user, v1.18)
   /* (user, v1.25) the scorer's celebrating teammates get in the way: an opponent within 0.5 yd of one (touching, like a block)
      runs 25% slower while he's that close. Not a block. */
@@ -1870,7 +1874,7 @@ function tdLive(dt){
     else if (p.fp === 'roll'){ const k = clamp01(p.fpT/PILE_ROLL); p.y = p.rollY0 + p.rollDir*p.rollDist*k;
       if (p.fpT >= PILE_ROLL){ p.fp = 'rise'; p.fpT = 0; p.stackLvl = -1; p.facing = p.lieS; } }
     else if (p.fp === 'rise'){ p.downMax = PILE_RISE + 0.1; p.downT = Math.max(0.001, PILE_RISE - p.fpT + dt); p.proneUp = false; p.backFall = false;   // drawn with the normal get-up
-      if (p.fpT >= PILE_RISE){ p.fp = null; p.downT = 0; p.waitSince = G.t; } }
+      if (p.fpT >= PILE_RISE){ p.fp = null; p.downT = 0; p.waitSince = G.t; if (p.humanFlop){ p.flopper = false; p.humanFlop = false; p.waitSince = null; } } }   // your scorer: back to running around (v1.45)
     else if (K){   // standing: get in range, then wait his turn
       const s = Math.sign(K.x - p.x) || p.facing || 1, back = (p.flopN||0) % 2 === 1;   // every other jump is an elbow drop
       const tx = back ? K.x - s*ELBOW_YD() : K.x, d = Math.hypot(tx - p.x, K.y - p.y);
@@ -1893,7 +1897,16 @@ function tdLive(dt){
     if (p.spikeDown && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = true; p.backFall = true; p.vx = p.vy = 0; }   // flattened by the spike: flat on his back
     if (p.piled && !p.dive && !(p.fallT > 0)){ p.downT = p.downMax = 1; p.proneUp = false; p.vx = p.vy = 0; } }
 }
-function hornAllowed(){ return G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team); }
+function hornAllowed(){ return G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team) && !flopMode(); }
+/* (user, v1.45) your scorer was tackled in the celebration: the button is FLOP. Once the man who tackled you is pinned and you're
+   in range (the same range the computer's floppers use), it does a belly flop or an elbow drop (50/50), then you roll off, get up
+   and can run around again and repeat. Your flops don't wait for turns. */
+function flopMode(){ return !!(G && G.phase === 'dead' && G.tdBy && isHuman(G.tdBy.team) && G.tdKnocked && G.tdCtl === G.tdBy); }
+function flopReady(){ if (!flopMode()) return null; const me = G.tdBy, K = G.tdPile;
+  if (!K || !K.piled || me.dive || me.downT > 0 || me.fallT > 0 || me.flop || me.flopper) return null;
+  if (me.nextBack == null) me.nextBack = rnd() < 0.5;
+  const s = Math.sign(K.x - me.x) || me.facing || 1, back = me.nextBack, tx = back ? K.x - s*ELBOW_YD() : K.x;
+  return Math.hypot(tx - me.x, K.y - me.y) <= PILE_REACH ? {back, s, tx, ty:K.y} : null; }
 function stepPrePlay(dt){
   if (G.phase === 'hwalk'){   // the computer always makes its calls before you make yours (user, v0.22)
       if (walkAll(dt)){ faceCenters(); G.guessFirst = isHuman(G.off) && !isHuman(G.def); G.phase = (G.guessFirst && !G.guessesDone) ? 'guess' : 'routes'; G.visit = 0; G.wait = 0; }
@@ -1967,6 +1980,7 @@ function update(dt){
   input.btnEdge = false; input.btnUpEdge = false; input.dirEdge = null; input.throwEdge = null; input.formKey = null;
   const fh = !(G.phase==='formation' && isHuman(G.off)); if ($('forms').hidden !== fh){ $('forms').hidden = fh; if (!fh) placeForms(); } else if (!fh && G.formsD !== G.d) placeForms();
   const lbl = btnLabel(); if (btnEl.textContent !== lbl) btnEl.textContent = lbl;
+  btnEl.classList.toggle('dim', lbl === 'FLOP' && !flopReady());   // FLOP is grayed out when you're not in range (user, v1.45)
 }
 
 function controlledPlayer(){
@@ -1982,6 +1996,7 @@ function controlledPlayer(){
 /* the button always shows what it would do right now (user, v0.68) */
 function btnLabel(){
   if (!G) return '';
+  if (flopMode()) return 'FLOP';
   if (hornAllowed()) return 'HORN';
   if (G.phase === 'dead' && G.tdBy && G.tdCtl && G.tdCtl.team !== G.tdBy.team) return G.tdKnocked ? (G.tdCtl.piled ? '' : 'TAUNT') : 'DIVE';   // their touchdown celebration (v1.18)
   if (isHuman(G.off) && ['hwalk','guess','routes'].includes(G.phase)) return 'RESET';   // pre-play decisions (user, v0.36)
