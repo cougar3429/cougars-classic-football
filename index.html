@@ -133,7 +133,7 @@ button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
     </div>
     <div class="vols"><label>Effects <input type="range" class="vfx" min="0" max="100" aria-label="Sound effects volume"></label><label>Voice <input type="range" class="vvoice" min="0" max="100" aria-label="Voice volume"></label><label>Crowd <input type="range" class="vcrowd" min="0" max="100" aria-label="Crowd volume"></label><label>Murmur <input type="range" class="vmurmur" min="0" max="100" aria-label="Crowd murmur volume"></label><label>Music <input type="range" class="vmusic" min="0" max="100" aria-label="Music volume"></label><label>Speed <input type="range" class="vspeed" min="50" max="150" step="5" aria-label="Game speed"></label></div>
     <div class="frow"><button class="big-btn alt" id="howb" type="button">HOW TO PLAY</button><button class="big-btn" id="start" type="button">START</button></div>
-    <small id="ver">Version 1.45</small>
+    <small id="ver">Version 1.47</small>
   </section>
 
   <section class="screen" id="how" hidden>
@@ -637,9 +637,12 @@ function crowdCut(bus){ try { if (!bus || !AC) return; const t = AC.currentTime;
 function sfx(name, ...a){ try { if (AC && FX && VOL.fx > 0) SFX[name](...a); } catch (e) {} }
 function playLock(){ sfx('lock'); }
 /* taunt (user, v1.18): a mocking two-note "HA-ha!" in a low, nasal synthesized voice, one of two versions at random each press. Plays on the Voice slider. */
+const HAHA_BUSES = [];   // the HA-has still playing, so the victory laugh can mute them (user, v1.47)
+function hahaMute(){ try { const t = AC.currentTime; for (const o of HAHA_BUSES){ o.gain.cancelScheduledValues(t); o.gain.setValueAtTime(o.gain.value, t); o.gain.linearRampToValueAtTime(0, t+0.03); } HAHA_BUSES.length = 0; } catch (e) {} }
 function sayHaha(){
   try { if (!AC || VOL.voice <= 0) return; const t0 = AC.currentTime + 0.01;
     const out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
+    HAHA_BUSES.push(out); setTimeout(() => { const i = HAHA_BUSES.indexOf(out); if (i >= 0) HAHA_BUSES.splice(i, 1); }, 1500);
     const ha = (t, pts, dur, peak, breath) => {
       if (breath){ const n = AC.createBufferSource(); n.buffer = noiseBuf(0.09); const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 0.8;   // the "h"
         const ng = AC.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(peak*0.5, t+0.03); ng.gain.exponentialRampToValueAtTime(0.0001, t+0.09); n.connect(bp); bp.connect(ng); ng.connect(out); n.start(t); }
@@ -658,6 +661,7 @@ function sayHaha(){
 /* the victory laugh (user's picks, v1.41): for the automatic laugh after evading the pile for 7 s. One of three at random: the
    villain laugh "Mwa-ha-ha-ha-HA!", the belly laugh (six falling "HA"s) and the schoolyard "NYAH nyah, NYAH nyah nyah!". Voice slider. */
 function sayVictory(){
+  hahaMute();   // any HA-ha already playing goes quiet (user, v1.47)
   try { if (!AC || VOL.voice <= 0) return; const t0 = AC.currentTime + 0.01, out = AC.createGain(); out.gain.value = VOL.voice; out.connect(AC.destination);
     const VOW = { a:[[700,1,7],[1150,0.6,9],[2600,0.25,10],[250,0.5,6]], ae:[[680,1,7],[1750,0.7,9],[2500,0.3,10],[250,0.4,6]] };
     const syl = (t, pts, dur, peak, o) => {
@@ -677,6 +681,7 @@ function sayVictory(){
       VOW[o.v || 'a'].forEach(([f, a, q]) => { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q; const g = AC.createGain(); g.gain.value = a*4; src.connect(bp); bp.connect(g); g.connect(bus); });
       src.start(t); vib.start(t); src.stop(t+dur+0.02); vib.stop(t+dur+0.02); };
     const r = Math.floor(Math.random()*3);
+    sayVictory.len = [1.64, 1.32, 1.63][r];   // how long this one lasts, so the button taunt can stay quiet meanwhile (user, v1.47)
     if (r === 0){ syl(t0, [[0,110],[0.3,120]], 0.34, 0.55, {nasal:0.12});   /* villain */
       [[0.40,125],[0.62,135],[0.84,145]].forEach(([d,f]) => syl(t0+d, [[0,f],[0.16,f*0.96]], 0.18, 0.5, {h:true}));
       syl(t0+1.06, [[0,170],[0.15,180],[0.55,130]], 0.58, 0.6, {h:true}); }
@@ -1539,7 +1544,7 @@ function sim(dt){
   }
   /* tackles (user, v0.25): a 1-on-1 attempt is broken 20% of the time; a dive is never broken. After breaking a man's
      tackle, the ball carrier is immune to that man's tackle attempts for 2 seconds — except a dive. Two or more at once: tackled. */
-  const hitters = G.all.filter(o => o.team !== T && !(o.blockedT > 0) && dist(o,c) < TACKLE &&   // a player engaged in a block can't tackle (user, v0.72)
+  const hitters = G.all.filter(o => o.team !== T && !(o.blockedT > 0) && !(o.downT > 0) && !(o.fallT > 0) && dist(o,c) < TACKLE &&   // a player engaged in a block can't tackle (user, v0.72); nor one on the ground, like a dive that landed short (user, v1.46)
     (o.dive || !((c.timm.get(o)||0) > 0)));
   if (hitters.length){
     if (hitters.length === 1 && !hitters[0].dive) G.stats.v1 = (G.stats.v1||0) + 1; else G.stats.multi = (G.stats.multi||0) + 1;
@@ -1665,7 +1670,7 @@ function endPlay(type, info){
   G.phase = 'dead'; G.t = 0; G.lastPlay = type;
   const bc = G.ball && G.ball.state === 'held' ? G.ball.carrier : null;
   if (type === 'TD'){ for (const p of G.all){ p.blockedT = 0; p.slowT = 0; p.blockWith = null; p.throwT = 0; p.throwBy = null; p.throwV = null; }   /* v1.29 fix: a block still running when the touchdown was scored never ran down during the celebration, so that player couldn't dive */
-    G.tdBy = bc; G.tdOff = G.off; G.tdCtl = (G.ctl && G.ctl.p && isHuman(G.ctl.p.team)) ? G.ctl.p : (isHuman(G.def) ? humanDefender() || G.lb : null); /* v1.12 fix: was controlledPlayer(), which gives nobody once the play is dead */ G.tdKnocked = false; G.tdChaser = null; G.tdPile = null; G.tdDiver = null; G.shakeT = 0; for (const p of G.all){ p.tdVx = p.vx || 0; p.tdVy = p.vy || 0; p.tdArrived = false; p.boost = 1; p.slowT = 0; p.hahaT = 0; p.bubbleT = 0; } G.tdEscaped = false; G.celebEnd = null; G.knockT = null; }   /* no leftover catch-up boost or block slowdown (user, v1.24) */ else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
+    G.tdBy = bc; G.tdOff = G.off; G.tdCtl = (G.ctl && G.ctl.p && isHuman(G.ctl.p.team)) ? G.ctl.p : (isHuman(G.def) ? humanDefender() || G.lb : null); /* v1.12 fix: was controlledPlayer(), which gives nobody once the play is dead */ G.tdKnocked = false; G.tdChaser = null; G.tdPile = null; G.tdDiver = null; G.shakeT = 0; for (const p of G.all){ p.tdVx = p.vx || 0; p.tdVy = p.vy || 0; p.tdArrived = false; p.boost = 1; p.slowT = 0; p.hahaT = 0; p.bubbleT = 0; } G.tdEscaped = false; G.celebEnd = null; G.knockT = null; G.victoryEnd = 0; }   /* no leftover catch-up boost or block slowdown (user, v1.24) */ else if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY'){ G.downed = bc; G.downAt = performance.now() - (G.downEarly ? 1000 : 0); G.downEarly = false; }
   if (type === 'DOWN' || type === 'INTDOWN' || type === 'SAFETY') sfx('whistle');   // runner down: whistle
   /* whose good play was it? (user, v0.61) Offense: touchdown, first down, 5+ yards. Defense: sack, interception, fumble recovered
      from the other team, safety, or holding the gain under 2 yards (not a first down or TD). An incomplete pass counts for nobody. */
@@ -1784,7 +1789,7 @@ function tdLive(dt){
   /* (user, v1.38) the knocker's reward: 7 s loose after his knockdown; the celebration ends 5 s after he gets it, or 5 s after the pile catches him */
   if (G.tdPile && G.tdPile.piled && G.celebEnd == null) G.celebEnd = G.t + 5;
   if (G.tdKnocked && !G.tdPile && G.celebEnd == null) G.celebEnd = G.t + 5;   // safety: knocked down with no knocker to chase
-  if (G.tdPile && !G.tdEscaped && G.knockT != null && G.t >= G.knockT + TD_CELEB && !G.tdPile.piled){ G.tdEscaped = true; G.celebEnd = G.t + 5; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.tdPile.team, true, false); sayVictory(); G.tdPile.hahaT = HAHA_T; G.tdPile.bubbleT = Infinity; }   /* (user, v1.37) the bubble stays up for the rest of the celebration */   // the escape reward also shows a HA-HA! bubble (user, v1.33)
+  if (G.tdPile && !G.tdEscaped && G.knockT != null && G.t >= G.knockT + TD_CELEB && !G.tdPile.piled){ G.tdEscaped = true; G.celebEnd = G.t + 5; crowdCut(G.tdCrowd); G.tdCrowd = crowdReact(G.tdPile.team, true, false); sayVictory(); G.victoryEnd = G.t + (sayVictory.len || 1.6); G.tdPile.hahaT = HAHA_T; G.tdPile.bubbleT = Infinity; }   /* (user, v1.37) the bubble stays up for the rest of the celebration */   // the escape reward also shows a HA-HA! bubble (user, v1.33)
   /* (user, v1.21) the computer always goes after your scorer (was 65%): its closest man dives at him once; if he misses, the
      next closest who hasn't tried goes, and so on, until one knocks him down or they've all tried */
   const nextChaser = () => { let best = null, bd = 1e9;
@@ -1795,7 +1800,7 @@ function tdLive(dt){
   if (flopMode() && input.btnEdge){ const f = flopReady();
     if (f){ me.flopper = true; me.humanFlop = true; me.nextBack = null; me.vx = me.vy = 0; me.facing = f.back ? -f.s : f.s;
       me.flop = {t:0, T:FLOP_T, back:f.back, s:f.s, lvl:null, sx:me.x, sy:me.y, tx:f.tx, ty:f.ty}; } }
-  if (me && me.team !== T && input.btnEdge){ if (G.tdKnocked){ if (!me.piled){ sayHaha(); me.hahaT = HAHA_T; } } else tryDive(me); }   /* no taunting once they've caught you (user, v1.22) */   // once you've knocked the scorer down, the button taunts instead of diving (user, v1.18)
+  if (me && me.team !== T && input.btnEdge){ if (G.tdKnocked){ if (!me.piled){ if (!(G.victoryEnd > G.t)) sayHaha(); me.hahaT = HAHA_T; } }   /* (user, v1.47) silent while the victory laugh plays; hands still go up */ else tryDive(me); }   /* no taunting once they've caught you (user, v1.22) */   // once you've knocked the scorer down, the button taunts instead of diving (user, v1.18)
   /* (user, v1.25) the scorer's celebrating teammates get in the way: an opponent within 0.5 yd of one (touching, like a block)
      runs 25% slower while he's that close. Not a block. */
   /* (user, v1.44) a chaser (the computer's, or your defender) throws aside any of the scorer's teammates he touches on the way:
@@ -1961,7 +1966,7 @@ function update(dt){
     case 'live': sim(dt); break;
     case 'dead':
       G.t += dt;
-      if (hornAllowed()){ if (input.btnEdge) hornOn(); if (input.btnUpEdge || !input.btn) hornOff(); }   // the air horn (user, v0.39)
+      if (hornAllowed()){ if (input.btnEdge) hornOn(); if (input.btnUpEdge || !input.btn) hornOff(); } else hornOff();   // the air horn (user, v0.39); it stops if the button stops being HORN while held, e.g. tackled (v1.47 fix)
       if (G.tdBy){ tdLive(dt); tdCelebration(dt); } if (G.shakeT > 0) G.shakeT -= dt;
       else if (input.btnEdge){ const dv = diverNow(); if (dv) tryDive(dv); }   // late dives, just for fun: up to 1 s after the whistle (user, v0.47)
       stepDives(dt);
